@@ -1,0 +1,24 @@
+[package]
+name = "vodbot"
+description = "A command line interface tool for managing VODs and Clips from Twitch."
+authors = ["Logan Hickok-Dickson <self@notquiteapex.net>"]
+version = "0.1.0"
+edition = "2021"
+
+homepage = "https://github.com/FriendTeamInc/VodBot-rs"
+repository = "https://github.com/FriendTeamInc/VodBot-rs"
+license = "MIT"
+keywords = ["twitch", "youtube", "archival", "cli"]
+categories = ["command-line-utilities", "multimedia", "multimedia::video"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ansi_term = "0.12.1"
+clap = "4.1.4"
+dirs = "4.0.0"
+google-youtube3 = "4.0.1"
+reqwest = { version = "0.11.14", features = ["blocking", "json"] }
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
+serde_yaml = "0.9.21"
