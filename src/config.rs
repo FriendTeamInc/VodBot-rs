@@ -4,6 +4,15 @@ use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use std::path::PathBuf;
 
+fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
+    let mut path = dirs::config_dir().unwrap();
+    path.push("vodbot");
+    for dir in dirs {
+        path.push(dir);
+    }
+    path
+}
+
 #[derive(Debug, Serialize, Deserialize, Validate)]
 #[serde(default)]
 pub struct ConfigChannel {
@@ -69,6 +78,33 @@ impl Default for ConfigPull {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate)]
+#[serde(default)]
+pub struct ConfigChat {
+    pub export_format: String, // TODO: change this to enum
+    pub message_display_time: usize,
+    pub randomize_uncolored_names: bool,
+
+    pub ytt_align: String, // TODO: change this to enum
+    pub ytt_anchor: u8,
+    pub ytt_position_x: u8,
+    pub ytt_position_y: u8,
+}
+impl Default for ConfigChat {
+    fn default() -> Self {
+        Self {
+            export_format: String::from("YTT"),
+            message_display_time: 10,
+            randomize_uncolored_names: true,
+
+            ytt_align: String::from("left"),
+            ytt_anchor: 6,
+            ytt_position_x: 0,
+            ytt_position_y: 100,
+        }
+    }
+}
+
 // #[derive(Debug, Serialize, Deserialize, Validate)]
 // pub struct ConfigWebhookBase {
 
@@ -112,13 +148,4 @@ pub struct Config {
     pub channels: Vec<ConfigChannel>,
     pub pull: ConfigPull,
     pub directories: ConfigDirectories,
-}
-
-fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
-    let mut path = dirs::config_dir().unwrap();
-    path.push("vodbot");
-    for dir in dirs {
-        path.push(dir);
-    }
-    path
 }
