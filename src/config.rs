@@ -5,167 +5,120 @@ use serde_valid::Validate;
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
-struct ConfigChannel {
+#[serde(default)]
+pub struct ConfigChannel {
     #[validate(min_length = 3)]
     #[validate(max_length = 24)]
-    username: String,
+    pub username: String,
 
-    #[serde(default = "_default_true")]
-    save_vods: bool,
-    #[serde(default = "_default_true")]
-    save_highlights: bool,
-    #[serde(default = "_default_true")]
-    save_uploads: bool,
-    #[serde(default = "_default_true")]
-    save_premieres: bool,
-    #[serde(default = "_default_true")]
-    save_clips: bool,
-    #[serde(default = "_default_true")]
-    save_chat: bool,
+    pub save_vods: bool,
+    pub save_highlights: bool,
+    pub save_uploads: bool,
+    pub save_premieres: bool,
+    pub save_clips: bool,
+    pub save_chat: bool,
+}
+impl Default for ConfigChannel {
+    fn default() -> Self {
+        Self {
+            username: String::from(""),
+            save_vods: true,
+            save_highlights: true,
+            save_uploads: true,
+            save_premieres: true,
+            save_clips: true,
+            save_chat: true,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
-struct ConfigPull {
-    #[serde(default = "_default_true")]
-    save_vods: bool,
-    #[serde(default = "_default_true")]
-    save_highlights: bool,
-    #[serde(default = "_default_true")]
-    save_uploads: bool,
-    #[serde(default = "_default_true")]
-    save_premieres: bool,
-    #[serde(default = "_default_true")]
-    save_clips: bool,
-    #[serde(default = "_default_true")]
-    save_chat: bool,
+#[serde(default)]
+pub struct ConfigPull {
+    pub save_vods: bool,
+    pub save_highlights: bool,
+    pub save_uploads: bool,
+    pub save_premieres: bool,
+    pub save_clips: bool,
+    pub save_chat: bool,
 
-    #[serde(default = "_default_twitch_client_id")]
-    gql_client_id: String,
+    pub gql_client_id: String,
 
-    #[serde(default = "num_cpus::get")]
-    max_download_workers: usize,
-    #[serde(default = "_default_download_chunk_size")]
-    download_chunk_size: usize,
+    pub max_download_workers: usize,
+    pub download_chunk_size: usize,
 
-    #[serde(default = "_default_connection_retries")]
-    connection_retries: usize,
-    #[serde(default = "_default_connection_timeout")]
-    connection_timeout: usize,
+    pub connection_retries: usize,
+    pub connection_timeout: usize,
+}
+impl Default for ConfigPull {
+    fn default() -> Self {
+        Self {
+            save_vods: true,
+            save_highlights: true,
+            save_uploads: true,
+            save_premieres: true,
+            save_clips: true,
+            save_chat: true,
+
+            gql_client_id: String::from("kd1unb4b3q4t58fwlpcbzcbnm76a8fp"),
+            max_download_workers: num_cpus::get(),
+            download_chunk_size: 1024,
+            connection_retries: 5,
+            connection_timeout: 5,
+        }
+    }
 }
 
 // #[derive(Debug, Serialize, Deserialize, Validate)]
-// struct ConfigWebhookBase {
+// pub struct ConfigWebhookBase {
 
 // }
 
 // #[derive(Debug, Serialize, Deserialize, Validate)]
-// struct ConfigWebhooks {
+// pub struct ConfigWebhooks {
 
 // }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
-struct ConfigDirectories {
-    #[serde(default = "_default_vods_directory")]
-    vods: PathBuf,
-    #[serde(default = "_default_highlights_directory")]
-    highlights: PathBuf,
-    #[serde(default = "_default_uploads_directory")]
-    uploads: PathBuf,
-    #[serde(default = "_default_premieres_directory")]
-    premieres: PathBuf,
-    #[serde(default = "_default_clips_directory")]
-    clips: PathBuf,
+#[serde(default)]
+pub struct ConfigDirectories {
+    pub vods: PathBuf,
+    pub highlights: PathBuf,
+    pub uploads: PathBuf,
+    pub premieres: PathBuf,
+    pub clips: PathBuf,
 
-    #[serde(default = "_default_temp_directory")]
-    temp: PathBuf,
-    #[serde(default = "_default_stage_directory")]
-    stage: PathBuf,
-    #[serde(default = "_default_thumbnail_directory")]
-    thumbnail: PathBuf,
+    pub temp: PathBuf,
+    pub stage: PathBuf,
+    pub thumbnail: PathBuf,
+}
+impl Default for ConfigDirectories {
+    fn default() -> Self {
+        Self {
+            vods: from_vodbot_dir(&["videos", "vods"]),
+            highlights: from_vodbot_dir(&["videos", "highlights"]),
+            uploads: from_vodbot_dir(&["videos", "uploads"]),
+            premieres: from_vodbot_dir(&["videos", "premieres"]),
+            clips: from_vodbot_dir(&["videos", "clips"]),
+            temp: from_vodbot_dir(&["temp"]),
+            stage: from_vodbot_dir(&["stage"]),
+            thumbnail: from_vodbot_dir(&["thumbnail"]),
+        }
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
-struct Config {
-    channels: Vec<ConfigChannel>,
-    pull: ConfigPull,
-    directories: ConfigDirectories,
+#[derive(Debug, Serialize, Deserialize, Validate, Default)]
+pub struct Config {
+    pub channels: Vec<ConfigChannel>,
+    pub pull: ConfigPull,
+    pub directories: ConfigDirectories,
 }
 
-const fn _default_true() -> bool {
-    true
-}
-
-fn _default_twitch_client_id() -> String {
-    String::from("kd1unb4b3q4t58fwlpcbzcbnm76a8fp")
-}
-
-const fn _default_download_chunk_size() -> usize {
-    1024
-}
-
-const fn _default_connection_retries() -> usize {
-    5
-}
-
-const fn _default_connection_timeout() -> usize {
-    5
-}
-
-fn _default_vodbot_directory() -> PathBuf {
+fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
     let mut path = dirs::config_dir().unwrap();
     path.push("vodbot");
-    path
-}
-
-fn _default_vods_directory() -> PathBuf {
-    let mut path = _default_vodbot_directory();
-    path.push("videos");
-    path.push("vods");
-    path
-}
-
-fn _default_highlights_directory() -> PathBuf {
-    let mut path = _default_vodbot_directory();
-    path.push("videos");
-    path.push("highlights");
-    path
-}
-
-fn _default_uploads_directory() -> PathBuf {
-    let mut path = _default_vodbot_directory();
-    path.push("videos");
-    path.push("uploads");
-    path
-}
-
-fn _default_premieres_directory() -> PathBuf {
-    let mut path = _default_vodbot_directory();
-    path.push("videos");
-    path.push("premieres");
-    path
-}
-
-fn _default_clips_directory() -> PathBuf {
-    let mut path = _default_vodbot_directory();
-    path.push("videos");
-    path.push("clips");
-    path
-}
-
-fn _default_temp_directory() -> PathBuf {
-    let mut path = _default_vodbot_directory();
-    path.push("temp");
-    path
-}
-
-fn _default_stage_directory() -> PathBuf {
-    let mut path = _default_vodbot_directory();
-    path.push("stage");
-    path
-}
-
-fn _default_thumbnail_directory() -> PathBuf {
-    let mut path = _default_vodbot_directory();
-    path.push("thumbnail");
+    for dir in dirs {
+        path.push(dir);
+    }
     path
 }

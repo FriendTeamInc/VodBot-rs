@@ -9,6 +9,9 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod config;
 mod util;
+mod commands {
+    pub mod init;
+}
 
 #[derive(Debug, Parser)]
 #[command(name = "VodBot", author, version)]
@@ -95,19 +98,41 @@ enum StageMode {
         ids: Vec<String>,
 
         #[arg(short = 'y', help = "Confirm removal")]
-        confirm: bool
+        confirm: bool,
     },
     #[command(about = "List current staged data")]
     List {
         #[arg(help = "ID(s) of staged data")]
-        ids: Option<Vec<String>>
+        ids: Option<Vec<String>>,
     },
 }
 
 fn deffered_main() -> Result<(), util::ExitMsg> {
     // Testing the CLI args
     let args = Cli::parse();
-    println!("{:?}", args);
+    // println!("{:?}", args);
+
+    match args.command {
+        Commands::Init {} => {
+            println!("init!");
+            commands::init::run();
+        }
+        Commands::Info { json, strings } => {
+            println!("info! {} {:?}", json, strings);
+        }
+        Commands::Pull { mode } => {
+            println!("pull! {:?}", mode);
+        }
+        Commands::Stage { command } => {
+            println!("stage! {:?}", command);
+        }
+        Commands::Export { stage_id, path } => {
+            println!("export! {} {}", stage_id, path.to_str().unwrap());
+        }
+        Commands::Upload { stage_id } => {
+            println!("upload! {}", stage_id);
+        }
+    }
 
     Ok(())
 }
@@ -115,7 +140,7 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
 fn main() {
     std::process::exit(deffered_main().map_or_else(
         |err| {
-            print!("{}", err.msg.as_str());
+            eprintln!("{}", err.msg.as_str());
             err.code as i32
         },
         |_| 0,
