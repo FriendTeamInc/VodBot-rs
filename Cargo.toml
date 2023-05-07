@@ -1,6 +1,6 @@
 [package]
 name = "vodbot"
-description = "A command line interface tool for managing VODs and Clips from Twitch."
+description = "A command line interface tool for managing VODs, chat logs, and more from Twitch."
 authors = ["Logan Hickok-Dickson <self@notquiteapex.net>"]
 version = "0.1.0"
 edition = "2021"
