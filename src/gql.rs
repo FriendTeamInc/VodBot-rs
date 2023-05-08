@@ -23,8 +23,8 @@ impl GQLClient {
             client: Client::new(),
         }
     }
-
-    pub fn query(&self, query: String) -> Result<twitch::TwitchResponse, util::ExitMsg> {
+    
+    pub fn raw_query(&self, query: String) -> Result<Response, util::ExitMsg> {
         let resp = self
             .client
             .post(&self.url)
@@ -47,7 +47,11 @@ impl GQLClient {
             });
         }
 
-        resp.json().map_err(|why| util::ExitMsg {
+        Ok(resp)
+    }
+
+    pub fn query(&self, query: String) -> Result<twitch::TwitchResponse, util::ExitMsg> {
+        self.raw_query(query)?.json().map_err(|why| util::ExitMsg {
             code: util::ExitCode::CannotParseResponseFromTwitch,
             msg: format!("Failed to parse response from Twitch, reason: \"{}\".", why),
         })
