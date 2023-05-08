@@ -17,6 +17,7 @@ categories = ["command-line-utilities", "multimedia", "multimedia::video"]
 ansi_term = "0.12.1"
 casual = "0.2.0"
 clap = { version = "4.2.7", features = ["derive"] }
+ctrlc = "3.2.5"
 dirs = "5.0.1"
 google-youtube3 = "5.0.2"
 num_cpus = "1.15.0"
