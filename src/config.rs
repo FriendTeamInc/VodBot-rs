@@ -137,15 +137,104 @@ impl Default for ConfigChat {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate)]
+#[serde(default)]
+pub struct ConfigStage {
+    #[validate(pattern = r"^[+-]\d{4}$")]
+    timezone: String,
+    description_macros: Vec<String>,
+    delete_on_export: bool,
+    delete_on_upload: bool,
+}
+impl Default for ConfigStage {
+    fn default() -> Self {
+        Self {
+            timezone: String::from("+0000"),
+            description_macros: Vec::new(),
+            delete_on_export: false,
+            delete_on_upload: false,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum FFMPEGLogLevel {
+    Quiet,
+    Panic,
+    Fatal,
+    Error,
+    Warning,
+    Info,
+    Verbose,
+    Debug,
+    Trace,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+#[serde(default)]
+pub struct ConfigExport {
+    ffmpeg_loglevel: FFMPEGLogLevel,
+    ffmpeg_stderr: Option<PathBuf>,
+    video_enable: bool,
+    chat_enable: bool,
+    thumbnail_enable: bool,
+}
+impl Default for ConfigExport {
+    fn default() -> Self {
+        Self {
+            ffmpeg_loglevel: FFMPEGLogLevel::Warning,
+            ffmpeg_stderr: None,
+            video_enable: true,
+            chat_enable: true,
+            thumbnail_enable: true,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate)]
+#[serde(default)]
+pub struct ConfigUpload {
+    chat_enable: bool,
+    thumbnail_enable: bool,
+    client_url: String,
+    client_path: PathBuf,
+    session_path: PathBuf,
+    #[validate(minimum = 262144)]
+    chunk_size: usize,
+    oauth_port: u16,
+    notify_subscribers: bool
+}
+impl Default for ConfigUpload {
+    fn default() -> Self {
+        Self {
+            chat_enable: true,
+            thumbnail_enable: true,
+            client_url: String::from("https://www.friendteam.biz/assets/vodbot-youtube-credentials"),
+            client_path: from_vodbot_dir(&["youtube_client.json"]),
+            session_path: from_vodbot_dir(&["youtube_session.json"]),
+            chunk_size: 262144,
+            oauth_port: 8080,
+            notify_subscribers: true,
+        }
+    }
+}
+
 // #[derive(Debug, Serialize, Deserialize, Validate)]
-// pub struct ConfigWebhookBase {
-
-// }
+// #[serde(default)]
+// pub struct ConfigThumbnailIcon {  }
+// #[derive(Debug, Serialize, Deserialize, Validate)]
+// #[serde(default)]
+// pub struct ConfigThumbnailPosition {  }
+// #[derive(Debug, Serialize, Deserialize, Validate)]
+// #[serde(default)]
+// pub struct ConfigThumbnail {  }
 
 // #[derive(Debug, Serialize, Deserialize, Validate)]
-// pub struct ConfigWebhooks {
-
-// }
+// #[serde(default)]
+// pub struct ConfigWebhookBase {  }
+// #[derive(Debug, Serialize, Deserialize, Validate)]
+// #[serde(default)]
+// pub struct ConfigWebhooks {  }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 #[serde(default)]
@@ -180,5 +269,10 @@ pub struct Config {
     pub channels: Vec<ConfigChannel>,
     pub pull: ConfigPull,
     pub chat: ConfigChat,
+    pub stage: ConfigStage,
+    pub export: ConfigExport,
+    pub upload: ConfigUpload,
+    // pub webhooks: ConfigWebhooks,
+    // pub thumbnail: ConfigThumbnail,
     pub directories: ConfigDirectories,
 }

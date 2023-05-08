@@ -1763,6 +1763,7 @@ dependencies = [
  "dirs",
  "google-youtube3",
  "num_cpus",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

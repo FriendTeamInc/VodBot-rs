@@ -132,6 +132,7 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
     // Parse command line arguments
     let args = Cli::parse();
 
+    // Run various commands
     match args.command {
         Commands::Init { overwrite_confirm } => {
             commands::init::run(overwrite_confirm)?;
@@ -153,6 +154,7 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
         }
     }
 
+    // We're done here!
     Ok(())
 }
 
