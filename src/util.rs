@@ -23,6 +23,7 @@ pub enum ExitCode {
     CannotValidateConfig,
 
     CannotConnectToTwitch,
+    RequestErrorFromTwitch, // TODO: rename this one
     CannotParseResponseFromTwitch,
 
     // Command-specific codes

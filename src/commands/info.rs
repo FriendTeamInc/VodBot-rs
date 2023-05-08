@@ -2,10 +2,11 @@
 
 use crate::config;
 use crate::gql;
+use crate::twitch;
 use crate::util;
 
-use std::path::PathBuf;
 use regex::Regex;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 enum ContentType {
@@ -39,7 +40,7 @@ pub fn run(config_path: PathBuf, json: bool, ids: Vec<String>) -> Result<(), uti
 
     let client = gql::GQLClient::new(conf.pull.gql_client_id);
     let resp = client.query("{ test(login: \\\"a\\\") { id } }".to_string())?;
-    println!("{:#?}", resp.text().unwrap());
+    println!("{:#?}", resp);
 
     for i in s {
         // we know the type and the id now, we can make queries here (or in a map)

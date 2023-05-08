@@ -8,8 +8,9 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand, ValueEnum};
 
 mod config;
-mod util;
 mod gql;
+mod twitch;
+mod util;
 mod commands {
     pub mod info;
     pub mod init;
@@ -135,7 +136,9 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
     let args = Cli::parse();
 
     // Figure out what config path to use
-    let config_path = args.config_path.unwrap_or(config::default_config_location());
+    let config_path = args
+        .config_path
+        .unwrap_or(config::default_config_location());
 
     // Run various commands
     match args.command {
