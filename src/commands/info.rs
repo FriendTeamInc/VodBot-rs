@@ -9,10 +9,10 @@ use regex::Regex;
 enum ContentType {
     Channel,
     Video,
-    Clip
+    Clip,
 }
 
-pub fn run(json: bool, strings: Vec<String>) -> Result<(), util::ExitMsg> {
+pub fn run(json: bool, ids: Vec<String>) -> Result<(), util::ExitMsg> {
     let set = [
         (ContentType::Channel, Regex::new(r"^(?P<id>[a-zA-Z0-9_][\w]{4,25})$").unwrap()),
         (ContentType::Channel, Regex::new(r"^(https?://)?(www\.)?twitch\.tv/(?P<id>[a-zA-Z0-9][\w]{4,25})(\?.*)?$").unwrap()),
@@ -26,8 +26,14 @@ pub fn run(json: bool, strings: Vec<String>) -> Result<(), util::ExitMsg> {
     let config_path = config::default_config_location();
     let conf = config::load_config(&config_path)?;
 
-    let s = strings.iter().filter_map(|id| {
-        set.iter().filter_map(|r| if r.1.captures(id).is_some() {Some(r)} else {None}).next()
+    // Let's map all the arguments given by the user to a regex (to extract an
+    // ID from) and type to know what to query.
+    let s = ids.iter().filter_map(|id| {
+        set.iter().find_map(|(kind, rgx)| {
+            rgx.captures(id)
+                .and_then(|c| c.name("id"))
+                .map(|c| (kind, c.as_str()))
+        })
     });
 
     for i in s {
