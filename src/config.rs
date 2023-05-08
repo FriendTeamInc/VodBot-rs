@@ -78,27 +78,59 @@ impl Default for ConfigPull {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ExportFormatType {
+    Raw,  // JSON export
+    YTT,  // YouTube Timed Text
+    RT,   // RealText
+    SAMI, // Synchronized Accessible Media Interchange
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum YTTAlignment {
+    Left,
+    Right,
+    Center,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum YTTAnchor {
+    TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    CenterCenter,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
+}
+
 #[derive(Debug, Serialize, Deserialize, Validate)]
 #[serde(default)]
 pub struct ConfigChat {
-    pub export_format: String, // TODO: change this to enum
+    pub export_format: ExportFormatType, // TODO: change this to enum
     pub message_display_time: usize,
     pub randomize_uncolored_names: bool,
 
-    pub ytt_align: String, // TODO: change this to enum
-    pub ytt_anchor: u8,
+    pub ytt_align: YTTAlignment, // TODO: change this to enum
+    pub ytt_anchor: YTTAnchor,
+    #[validate(minimum = 0)]
+    #[validate(maximum = 100)]
     pub ytt_position_x: u8,
+    #[validate(minimum = 0)]
+    #[validate(maximum = 100)]
     pub ytt_position_y: u8,
 }
 impl Default for ConfigChat {
     fn default() -> Self {
         Self {
-            export_format: String::from("YTT"),
+            export_format: ExportFormatType::YTT,
             message_display_time: 10,
             randomize_uncolored_names: true,
 
-            ytt_align: String::from("left"),
-            ytt_anchor: 6,
+            ytt_align: YTTAlignment::Left,
+            ytt_anchor: YTTAnchor::BottomLeft,
             ytt_position_x: 0,
             ytt_position_y: 100,
         }
@@ -147,5 +179,6 @@ impl Default for ConfigDirectories {
 pub struct Config {
     pub channels: Vec<ConfigChannel>,
     pub pull: ConfigPull,
+    pub chat: ConfigChat,
     pub directories: ConfigDirectories,
 }

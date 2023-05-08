@@ -114,8 +114,7 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
 
     match args.command {
         Commands::Init {} => {
-            println!("init!");
-            commands::init::run();
+            commands::init::run()?;
         }
         Commands::Info { json, strings } => {
             println!("info! {} {:?}", json, strings);
