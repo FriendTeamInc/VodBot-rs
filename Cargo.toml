@@ -15,6 +15,7 @@ categories = ["command-line-utilities", "multimedia", "multimedia::video"]
 
 [dependencies]
 ansi_term = "0.12.1"
+casual = "0.2.0"
 clap = { version = "4.2.7", features = ["derive"] }
 dirs = "5.0.1"
 google-youtube3 = "5.0.2"

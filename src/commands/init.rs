@@ -11,12 +11,20 @@ pub fn run(overwrite_confirm: bool) -> Result<(), util::ExitMsg> {
         ..Default::default()
     };
 
-    println!("Creating default config...");
-
     let config_path = config::from_vodbot_dir(&["config.json"]);
 
-    if config_path.exists() && !overwrite_confirm {
+    println!(
+        "Creating default config file at `{}`...",
+        &config_path.display()
+    );
 
+    if config_path.exists() && !overwrite_confirm {
+        if !casual::confirm(format!(
+            "A config file already exists... Are you sure you want to continue?"
+        )) {
+            println!("Exiting...");
+            return Ok(());
+        }
     }
 
     util::create_dir(&conf.directories.vods)?;
@@ -52,8 +60,9 @@ pub fn run(overwrite_confirm: bool) -> Result<(), util::ExitMsg> {
                 why
             ),
         })?;
-    
-    println!("Finished, the config can be edited at `{}`", &config_path.display());
+
+    println!("Finished.");
+    // You may still need to add channels yourself.
 
     Ok(())
 }
