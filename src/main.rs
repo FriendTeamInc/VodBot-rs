@@ -9,6 +9,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 mod config;
 mod util;
+mod gql;
 mod commands {
     pub mod info;
     pub mod init;
@@ -19,7 +20,7 @@ mod commands {
 #[command(about, long_about = None)]
 struct Cli {
     #[arg(short, long)]
-    config: Option<PathBuf>,
+    config_path: Option<PathBuf>,
     #[arg(short, long)]
     no_color: bool,
     #[arg(short, long)]
@@ -133,13 +134,16 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
     // Parse command line arguments
     let args = Cli::parse();
 
+    // Figure out what config path to use
+    let config_path = args.config_path.unwrap_or(config::default_config_location());
+
     // Run various commands
     match args.command {
         Commands::Init { overwrite_confirm } => {
             commands::init::run(overwrite_confirm)?;
         }
         Commands::Info { json, strings } => {
-            commands::info::run(json, strings)?;
+            commands::info::run(config_path, json, strings)?;
         }
         Commands::Pull { mode } => {
             println!("pull! {:?}", mode);

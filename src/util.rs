@@ -22,6 +22,9 @@ pub enum ExitCode {
     CannotParseConfig,
     CannotValidateConfig,
 
+    CannotConnectToTwitch,
+    CannotParseResponseFromTwitch,
+
     // Command-specific codes
     InitCannotOpenConfig,
     InitCannotWriteConfig,

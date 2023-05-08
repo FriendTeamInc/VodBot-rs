@@ -1,8 +1,10 @@
 // Info command, for getting basic data on various things
 
 use crate::config;
+use crate::gql;
 use crate::util;
 
+use std::path::PathBuf;
 use regex::Regex;
 
 #[derive(Debug)]
@@ -12,7 +14,7 @@ enum ContentType {
     Clip,
 }
 
-pub fn run(json: bool, ids: Vec<String>) -> Result<(), util::ExitMsg> {
+pub fn run(config_path: PathBuf, json: bool, ids: Vec<String>) -> Result<(), util::ExitMsg> {
     let set = [
         (ContentType::Channel, Regex::new(r"^(?P<id>[a-zA-Z0-9_][\w]{4,25})$").unwrap()),
         (ContentType::Channel, Regex::new(r"^(https?://)?(www\.)?twitch\.tv/(?P<id>[a-zA-Z0-9][\w]{4,25})(\?.*)?$").unwrap()),
@@ -23,7 +25,6 @@ pub fn run(json: bool, ids: Vec<String>) -> Result<(), util::ExitMsg> {
         (ContentType::Clip, Regex::new(r"^(https?://)?clips\.twitch.tv/(?P<id>[A-Za-z0-9]+(?:-[A-Za-z0-9_-]{16})?)(\?.*)?$").unwrap()),
     ];
 
-    let config_path = config::default_config_location();
     let conf = config::load_config(&config_path)?;
 
     // Let's map all the arguments given by the user to a regex (to extract an
@@ -35,6 +36,10 @@ pub fn run(json: bool, ids: Vec<String>) -> Result<(), util::ExitMsg> {
                 .map(|c| (kind, c.as_str()))
         })
     });
+
+    let client = gql::GQLClient::new(conf.pull.gql_client_id);
+    let resp = client.query("{ test(login: \\\"a\\\") { id } }".to_string())?;
+    println!("{:#?}", resp.text().unwrap());
 
     for i in s {
         // we know the type and the id now, we can make queries here (or in a map)
