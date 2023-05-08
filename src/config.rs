@@ -2,7 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
+
+use crate::util;
 
 pub fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
     let mut path = dirs::config_dir().unwrap();
@@ -11,6 +13,40 @@ pub fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
         path.push(dir);
     }
     path
+}
+
+pub fn default_config_location() -> PathBuf {
+    from_vodbot_dir(&["config.json"])
+}
+
+pub fn load_config(path: &PathBuf) -> Result<Config, util::ExitMsg> {
+    let file = fs::File::open(path).map_err(|why| util::ExitMsg {
+        code: util::ExitCode::CannotOpenConfig,
+        msg: format!(
+            "Failed to open config at `{}`, reason: \"{}\".",
+            &path.display(),
+            why
+        ),
+    })?;
+    let json: Config = serde_json::from_reader(file).map_err(|why| util::ExitMsg {
+        code: util::ExitCode::CannotParseConfig,
+        msg: format!(
+            "Failed to parse config at `{}`, reason: \"{}\".",
+            &path.display(),
+            why
+        ),
+    })?;
+
+    json.validate().map_err(|why| util::ExitMsg {
+        code: util::ExitCode::CannotValidateConfig,
+        msg: format!(
+            "Failed to validate config at `{}`, reason: \"{}\".",
+            &path.display(),
+            why
+        ),
+    })?;
+
+    Ok(json)
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
@@ -202,14 +238,16 @@ pub struct ConfigUpload {
     #[validate(minimum = 262144)]
     chunk_size: usize,
     oauth_port: u16,
-    notify_subscribers: bool
+    notify_subscribers: bool,
 }
 impl Default for ConfigUpload {
     fn default() -> Self {
         Self {
             chat_enable: true,
             thumbnail_enable: true,
-            client_url: String::from("https://www.friendteam.biz/assets/vodbot-youtube-credentials"),
+            client_url: String::from(
+                "https://www.friendteam.biz/assets/vodbot-youtube-credentials",
+            ),
             client_path: from_vodbot_dir(&["youtube_client.json"]),
             session_path: from_vodbot_dir(&["youtube_session.json"]),
             chunk_size: 262144,
@@ -266,13 +304,22 @@ impl Default for ConfigDirectories {
 
 #[derive(Debug, Serialize, Deserialize, Validate, Default)]
 pub struct Config {
+    #[validate]
     pub channels: Vec<ConfigChannel>,
+    #[validate]
     pub pull: ConfigPull,
+    #[validate]
     pub chat: ConfigChat,
+    #[validate]
     pub stage: ConfigStage,
+    #[validate]
     pub export: ConfigExport,
+    #[validate]
     pub upload: ConfigUpload,
+    // #[validate]
     // pub webhooks: ConfigWebhooks,
+    // #[validate]
     // pub thumbnail: ConfigThumbnail,
+    #[validate]
     pub directories: ConfigDirectories,
 }

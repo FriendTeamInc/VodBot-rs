@@ -11,7 +11,7 @@ pub fn run(overwrite_confirm: bool) -> Result<(), util::ExitMsg> {
         ..Default::default()
     };
 
-    let config_path = config::from_vodbot_dir(&["config.json"]);
+    let config_path = config::default_config_location();
 
     println!(
         "Creating default config file at `{}`...",
@@ -45,7 +45,7 @@ pub fn run(overwrite_confirm: bool) -> Result<(), util::ExitMsg> {
         ),
     })?;
 
-    let json_to_write = serde_json::to_string(&conf).map_err(|why| util::ExitMsg {
+    let json_to_write = serde_json::to_string_pretty(&conf).map_err(|why| util::ExitMsg {
         code: util::ExitCode::InitCannotSerializeConfig,
         msg: format!("Failed to serialize config, reason: \"{}\".", why),
     })?;

@@ -9,12 +9,19 @@ use std::path::Path;
 // or not used, as indicated by the leading underscore in its name.
 #[derive(Debug, Clone, Copy)]
 pub enum ExitCode {
+    // Special codes
     _CleanExit,
     Interrupted,
     _ReservedByClap,
+
+    // Generic codes
     CannotRegisterSignalHandler,
     CannotCreateDir,
+    CannotOpenConfig,
+    CannotParseConfig,
+    CannotValidateConfig,
 
+    // Command-specific codes
     InitCannotOpenConfig,
     InitCannotWriteConfig,
     InitCannotSerializeConfig,

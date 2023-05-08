@@ -10,6 +10,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 mod config;
 mod util;
 mod commands {
+    pub mod info;
     pub mod init;
 }
 
@@ -138,7 +139,7 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
             commands::init::run(overwrite_confirm)?;
         }
         Commands::Info { json, strings } => {
-            println!("info! {} {:?}", json, strings);
+            commands::info::run(json, strings)?;
         }
         Commands::Pull { mode } => {
             println!("pull! {:?}", mode);
