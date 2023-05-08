@@ -13,6 +13,10 @@ pub enum ExitCode {
     _UnknownError,
     _ReservedByClap,
     CannotCreateDir,
+
+    InitCannotOpenConfig,
+    InitCannotWriteConfig,
+    InitCannotSerializeConfig,
 }
 
 pub struct ExitMsg {

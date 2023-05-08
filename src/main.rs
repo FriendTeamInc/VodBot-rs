@@ -5,7 +5,7 @@ extern crate dirs;
 
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 
 mod config;
 mod util;
@@ -31,7 +31,10 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     #[command(about = "Initialize directories and files for VodBot")]
-    Init {},
+    Init {
+        #[arg(short = 'y', help = "Confirm overwriting an existing config")]
+        overwrite_confirm: bool,
+    },
     #[command(about = "Get info about videos, clips, or channels")]
     Info {
         // JSON output
@@ -113,8 +116,8 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
     // println!("{:?}", args);
 
     match args.command {
-        Commands::Init {} => {
-            commands::init::run()?;
+        Commands::Init { overwrite_confirm } => {
+            commands::init::run(overwrite_confirm)?;
         }
         Commands::Info { json, strings } => {
             println!("info! {} {:?}", json, strings);

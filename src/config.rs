@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use std::path::PathBuf;
 
-fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
+pub fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
     let mut path = dirs::config_dir().unwrap();
     path.push("vodbot");
     for dir in dirs {
