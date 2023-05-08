@@ -17,6 +17,7 @@ pub enum ExitCode {
     // Generic codes
     CannotRegisterSignalHandler,
     CannotCreateDir,
+
     CannotOpenConfig,
     CannotParseConfig,
     CannotValidateConfig,
