@@ -24,6 +24,7 @@ pub enum ExitCode {
 
     CannotConnectToTwitch,
     RequestErrorFromTwitch, // TODO: rename this one
+    GQLErrorFromTwitch,
     CannotParseResponseFromTwitch,
 
     // Command-specific codes
