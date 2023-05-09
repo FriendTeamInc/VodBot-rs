@@ -1,51 +1,42 @@
 // Twitch library for making specific queries given a GQLClient
 
-use serde::{Deserialize, Serialize};
+use crate::{gql, util};
 
-use crate::gql;
+pub fn get_channel_videos(
+    client: &gql::GQLClient,
+    user_login: String,
+) -> Result<(), util::ExitMsg> {
+    // Paged query
+    // Get all videos from a channel
 
-#[derive(Debug, Serialize, Deserialize)]
-struct TwitchResponseErrorLocation {
-    line: usize,
-    column: usize,
+    let after = "";
+    loop {
+        let q = format!(
+            "
+        {{  user(login: \"{}\") {{
+            videos( first: 100, sort: TIME, after: \"{}\" ) {{
+                totalCount edges {{ cursor node {{
+                    id title publishedAt broadcastType status lengthSeconds
+                    game {{ id name }}
+                    creator {{ id login displayName }}
+        }}  }}  }}  }}  }}
+        ",
+            user_login, after
+        );
+
+        let j = client.query(q)?;
+
+        break;
+    }
+    
+    Ok(())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct TwitchResponseError {
-    message: String,
-    locations: Vec<TwitchResponseErrorLocation>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct TwitchResponseExtensions {
-    #[serde(rename = "durationMilliseconds")]
-    duration_milliseconds: usize,
-    #[serde(rename = "requestID")]
-    request_id: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TwitchResponse {
-    errors: Option<Vec<TwitchResponseError>>,
-    extensions: TwitchResponseExtensions,
-}
-
-// Paged queries
-// Get all videos from a channel
-const QUERY_GET_CHANNEL_VIDEOS: &str = "
-{{  user(login: \\\"{channel_id}\\\") {{
-    videos( first: {first}, sort: {sort}, after: {after} ) {{
-        totalCount edges {{ cursor node {{
-            id title publishedAt broadcastType status lengthSeconds
-            game {{ id name }}
-            creator {{ id login displayName }}
-}}  }}  }}  }}  }}
-";
 // Get all clips from a channel
 const QUERY_GET_CHANNEL_CLIPS: &str = "
 {{  user(login: \\\"{channel_id}\\\") {{
     clips(
-        first: {first}, after: {after},
+        first: 100, after: {after},
         criteria: {{ period: ALL_TIME, sort: CREATED_AT_DESC }}
     ) {{
         edges {{ cursor node {{

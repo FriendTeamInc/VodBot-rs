@@ -1,13 +1,16 @@
 // GQL Client, for making GQL calls to Twitch's backend.
 
 use crate::twitch;
+use crate::twitch_api;
 use crate::util;
 
 use reqwest::blocking::Client;
 use reqwest::blocking::Response;
+use serde::Serialize;
 
-trait GQLQuery {
-    fn query(query: String) -> Result<(), util::ExitMsg>;
+#[derive(Serialize)]
+struct GQLQuery {
+    query: String,
 }
 
 pub struct GQLClient {
@@ -23,14 +26,13 @@ impl GQLClient {
             client: Client::new(),
         }
     }
-    
+
     pub fn raw_query(&self, query: String) -> Result<Response, util::ExitMsg> {
         let resp = self
             .client
             .post(&self.url)
             .header("Client-ID", &self.client_id)
-            .body(format!("{{\"query\":\"{}\"}}", query))
-            .header("Content-Type", "application/json")
+            .json(&GQLQuery { query: query })
             .send()
             .map_err(|why| util::ExitMsg {
                 code: util::ExitCode::CannotConnectToTwitch,
@@ -50,7 +52,7 @@ impl GQLClient {
         Ok(resp)
     }
 
-    pub fn query(&self, query: String) -> Result<twitch::TwitchResponse, util::ExitMsg> {
+    pub fn query(&self, query: String) -> Result<twitch_api::TwitchResponse, util::ExitMsg> {
         self.raw_query(query)?.json().map_err(|why| util::ExitMsg {
             code: util::ExitCode::CannotParseResponseFromTwitch,
             msg: format!("Failed to parse response from Twitch, reason: \"{}\".", why),

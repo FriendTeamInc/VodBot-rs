@@ -39,8 +39,9 @@ pub fn run(config_path: PathBuf, json: bool, ids: Vec<String>) -> Result<(), uti
     });
 
     let client = gql::GQLClient::new(conf.pull.gql_client_id);
-    let resp = client.query("{ test(login: \\\"a\\\") { id } }".to_string())?;
-    println!("{:#?}", resp);
+    twitch::get_channel_videos(&client, "notquiteapex".to_string());
+    // let resp = client.raw_query("{ test(login: \\\"a\\\") { id } }".to_string())?;
+    // println!("{:#?}", resp);
 
     for i in s {
         // we know the type and the id now, we can make queries here (or in a map)

@@ -7,7 +7,7 @@ use std::path::Path;
 // Each exit point of the program should be using a very clear exit code, along
 // with a message sent to stderr for more details. Certain codes may be reserved
 // or not used, as indicated by the leading underscore in its name.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ExitCode {
     // Special codes
     _CleanExit,
@@ -32,6 +32,7 @@ pub enum ExitCode {
     InitCannotSerializeConfig,
 }
 
+#[derive(Debug, Clone)]
 pub struct ExitMsg {
     pub code: ExitCode,
     pub msg: String,

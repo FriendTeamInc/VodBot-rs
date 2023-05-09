@@ -10,6 +10,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 mod config;
 mod gql;
 mod twitch;
+mod twitch_api;
 mod util;
 mod commands {
     pub mod info;
