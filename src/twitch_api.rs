@@ -13,7 +13,7 @@ pub struct TwitchResponseErrorLocation {
 #[derive(Debug, Deserialize)]
 pub struct TwitchResponseError {
     pub message: String,
-    pub locations: Vec<TwitchResponseErrorLocation>,
+    pub locations: Option<Vec<TwitchResponseErrorLocation>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,24 +56,26 @@ pub struct TwitchUserRoles {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TwitchVideoBroadcastType {
-    ARCHIVE,
-    HIGHLIGHT,
-    UPLOAD,
-    PREMIERE_UPLOAD,
-    PAST_PREMIERE,
+    Archive,
+    Highlight,
+    Upload,
+    PremiereUpload,
+    PastPremiere,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TwitchVideoStatus {
-    RECORDING,
-    UNPROCESSED,
-    CREATED,
-    UPLOADING,
-    PENDING_TRANSCODE,
-    TRANSCODING,
-    FAILED,
-    RECORDED,
+    Recording,
+    Unprocessed,
+    Created,
+    Uploading,
+    PendingTranscode,
+    Transcoding,
+    Failed,
+    Recorded,
 }
 
 #[derive(Debug, Deserialize)]
@@ -132,10 +134,10 @@ pub struct TwitchResponsePlaybackAccessToken {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TwitchResponseData {
-    user(TwitchUser),
-    video(()),
-    clip(()),
-    video_playback_access_token(TwitchResponsePlaybackAccessToken),
+    User(TwitchUser),
+    Video(()),
+    Clip(()),
+    VideoPlaybackAccessToken(TwitchResponsePlaybackAccessToken),
 }
 
 #[derive(Debug, Deserialize)]

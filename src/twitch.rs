@@ -8,7 +8,7 @@ pub fn get_channel_videos(client: &GQLClient, user_login: String) -> Result<(), 
     // Paged query
     // Get all videos from a channel
 
-    let after = "";
+    let mut after: String = String::from("");
     loop {
         let q = format!(
             "{{  user(login: \"{}\") {{
@@ -24,15 +24,21 @@ pub fn get_channel_videos(client: &GQLClient, user_login: String) -> Result<(), 
 
         let j = client.query(q)?;
 
-        if let Some(TwitchResponseData::user(u)) = j.data {
+        if let Some(TwitchResponseData::User(u)) = j.data {
             if let Some(t) = u.videos {
-                // let r = t.edges.iter().map(|f| f.node);
+                // Round up the videos
+                // TODO: convert TwitchUserVideoNode into a more usable format
+                let r: Vec<_> = t.edges.iter().map(|f| &f.node).collect();
+                println!("{:?}", r);
+
+                // Handle paging
+                if t.page_info.has_next_page {
+                    after = t.edges.last().unwrap().cursor.clone().unwrap();
+                } else {
+                    break;
+                }
             }
         }
-
-        // println!("{:?}", j);
-
-        break;
     }
 
     Ok(())
