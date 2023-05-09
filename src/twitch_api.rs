@@ -34,7 +34,7 @@ pub struct TwitchGame {
 #[serde(rename_all = "camelCase")]
 pub struct TwitchPageInfo {
     pub has_next_page: bool,
-    pub has_previous_page: bool,
+    // pub has_previous_page: bool,
 }
 
 #[derive(Debug, Deserialize)]

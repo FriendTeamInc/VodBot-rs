@@ -20,6 +20,7 @@ clap = { version = "4.2.7", features = ["derive"] }
 ctrlc = "3.2.5"
 dirs = "5.0.1"
 google-youtube3 = "5.0.2"
+indoc = "2"
 num_cpus = "1.15.0"
 regex = "1.8.1"
 reqwest = { version = "0.11.14", features = ["blocking", "json"] }
