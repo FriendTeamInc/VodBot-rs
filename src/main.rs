@@ -12,6 +12,7 @@ mod gql;
 mod twitch;
 mod twitch_api;
 mod util;
+mod vodbot_api;
 mod commands {
     pub mod info;
     pub mod init;
