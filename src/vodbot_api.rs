@@ -14,6 +14,70 @@ pub struct VodChapter {
     pub filepath: PathBuf,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Vod {
+    pub id: String,
+
+    pub streamer_id: String,
+    pub streamer_login: String,
+    pub streamer_name: String,
+
+    pub game_id: Option<String>,
+    pub game_name: Option<String>,
+
+    pub title: String,
+    pub created_at: String,
+    pub chapters: Vec<VodChapter>,
+    pub duration: usize,
+    pub has_chat: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Clip {
+    pub id: String,
+    pub slug: String,
+
+    pub streamer_id: String,
+    pub streamer_login: String,
+    pub streamer_name: String,
+
+    pub clipper_id: String,
+    pub clipper_login: String,
+    pub clipper_name: String,
+
+    pub game_id: Option<String>,
+    pub game_name: Option<String>,
+
+    pub title: String,
+    pub created_at: String,
+    pub view_count: usize,
+    pub duration: usize,
+    pub offset: usize,
+
+    pub vod_id: String,
+    // pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Channel {
+    pub id: String,
+    pub login: String,
+    pub name: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatMessage {
+    pub user_name: String,
+    pub color: String,
+    pub offset: usize,
+    pub msg: String,
+}
+
 // Stage related data
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
