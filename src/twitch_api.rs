@@ -1,6 +1,8 @@
 // Twitch's GQL API has some whacky output structures.
 // Defining them here like they are in the API makes it just easier to work with.
 
+use std::collections::HashMap;
+
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -88,7 +90,7 @@ pub struct TwitchUserVideoUser {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TwitchUserVideoNode {
+pub struct TwitchVideo {
     pub id: String,
     pub title: String,
     pub published_at: String,
@@ -97,21 +99,23 @@ pub struct TwitchUserVideoNode {
     pub length_seconds: usize,
     pub game: Option<TwitchGame>,
     // pub creator: TwitchUserVideoUser,
+    // pub comments: Option<Vec<TwitchVideoCommentEdge>>,
+    // pub moments: Option<Vec<TwitchVideoMomentEdge>>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TwitchUserVideoEdge {
+pub struct TwitchVideoEdge {
     pub cursor: Option<String>,
-    pub node: TwitchUserVideoNode,
+    pub node: TwitchVideo,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TwitchUserVideoConnection {
     pub page_info: TwitchPageInfo,
-    pub total_count: usize,
-    pub edges: Vec<TwitchUserVideoEdge>,
+    // pub total_count: usize,
+    pub edges: Vec<TwitchVideoEdge>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -146,3 +150,19 @@ pub struct TwitchResponse {
     // extensions: TwitchResponseExtensions,
     pub data: Option<TwitchResponseData>,
 }
+
+pub trait TwitchFormResponse {}
+
+#[derive(Debug, Deserialize)]
+pub struct TwitchUserResponse {
+    pub errors: Option<Vec<TwitchResponseError>>,
+    pub data: Option<HashMap<String, TwitchUser>>,
+}
+impl TwitchFormResponse for TwitchUserResponse {}
+
+#[derive(Debug, Deserialize)]
+pub struct TwitchVideoResponse {
+    pub errors: Option<Vec<TwitchResponseError>>,
+    pub data: Option<HashMap<String, TwitchVideo>>,
+}
+impl TwitchFormResponse for TwitchVideoResponse {}

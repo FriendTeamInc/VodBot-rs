@@ -1,6 +1,5 @@
 // GQL Client, for making GQL calls to Twitch's backend.
 
-use crate::twitch;
 use crate::twitch_api;
 use crate::util;
 
@@ -52,8 +51,8 @@ impl GQLClient {
         Ok(resp)
     }
 
-    pub fn query(&self, query: String) -> Result<twitch_api::TwitchResponse, util::ExitMsg> {
-        let j: twitch_api::TwitchResponse =
+    pub fn query(&self, query: String) -> Result<twitch_api::TwitchUserResponse, util::ExitMsg> {
+        let j: twitch_api::TwitchUserResponse =
             self.raw_query(query)?.json().map_err(|why| util::ExitMsg {
                 code: util::ExitCode::CannotParseResponseFromTwitch,
                 msg: format!("Failed to parse response from Twitch, reason: \"{}\".", why),
