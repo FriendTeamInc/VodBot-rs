@@ -16,6 +16,7 @@ pub struct TwitchResponseErrorLocation {
 pub struct TwitchResponseError {
     pub message: String,
     pub locations: Option<Vec<TwitchResponseErrorLocation>>,
+    pub path: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,7 +94,7 @@ pub struct TwitchUserVideoUser {
 pub struct TwitchVideo {
     pub id: String,
     pub title: String,
-    pub published_at: String,
+    pub created_at: String,
     pub broadcast_type: TwitchVideoBroadcastType,
     pub status: TwitchVideoStatus,
     pub length_seconds: usize,
@@ -105,6 +106,27 @@ pub struct TwitchVideo {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TwitchClipVideoSource {
+    pub id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchClip {
+    pub id: String,
+    pub slug: String,
+    pub title: String,
+    pub created_at: String,
+    pub view_count: usize,
+    pub duration_seconds: usize,
+    pub video_offset_secconds: Option<usize>,
+    pub video: Option<TwitchClipVideoSource>,
+    pub game: Option<TwitchGame>,
+    pub curator: Option<TwitchUser>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TwitchVideoEdge {
     pub cursor: Option<String>,
     pub node: TwitchVideo,
@@ -112,10 +134,23 @@ pub struct TwitchVideoEdge {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TwitchClipEdge {
+    pub cursor: Option<String>,
+    pub node: TwitchClip,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TwitchUserVideoConnection {
     pub page_info: TwitchPageInfo,
-    // pub total_count: usize,
     pub edges: Vec<TwitchVideoEdge>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchUserClipConnection {
+    pub page_info: TwitchPageInfo,
+    pub edges: Vec<TwitchClipEdge>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -127,6 +162,7 @@ pub struct TwitchUser {
     pub roles: Option<TwitchUserRoles>,
     pub stream: Option<TwitchUserStream>,
     pub videos: Option<TwitchUserVideoConnection>,
+    pub clips: Option<TwitchUserClipConnection>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -151,18 +187,28 @@ pub struct TwitchResponse {
     pub data: Option<TwitchResponseData>,
 }
 
-pub trait TwitchFormResponse {}
+pub trait TwitchFormResponse {
+    fn errors(&self) -> Option<&Vec<TwitchResponseError>>;
+}
 
 #[derive(Debug, Deserialize)]
 pub struct TwitchUserResponse {
     pub errors: Option<Vec<TwitchResponseError>>,
     pub data: Option<HashMap<String, TwitchUser>>,
 }
-impl TwitchFormResponse for TwitchUserResponse {}
+impl TwitchFormResponse for TwitchUserResponse {
+    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
+        self.errors.as_ref()
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct TwitchVideoResponse {
     pub errors: Option<Vec<TwitchResponseError>>,
     pub data: Option<HashMap<String, TwitchVideo>>,
 }
-impl TwitchFormResponse for TwitchVideoResponse {}
+impl TwitchFormResponse for TwitchVideoResponse {
+    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
+        self.errors.as_ref()
+    }
+}

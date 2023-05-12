@@ -25,8 +25,8 @@ pub struct Vod {
     pub streamer_login: String,
     pub streamer_name: String,
 
-    pub game_id: Option<String>,
-    pub game_name: Option<String>,
+    pub game_id: String,
+    pub game_name: String,
 
     pub title: String,
     pub created_at: String,
@@ -49,8 +49,8 @@ pub struct Clip {
     pub clipper_login: String,
     pub clipper_name: String,
 
-    pub game_id: Option<String>,
-    pub game_name: Option<String>,
+    pub game_id: String,
+    pub game_name: String,
 
     pub title: String,
     pub created_at: String,

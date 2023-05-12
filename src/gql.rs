@@ -51,14 +51,16 @@ impl GQLClient {
         Ok(resp)
     }
 
-    pub fn query(&self, query: String) -> Result<twitch_api::TwitchUserResponse, util::ExitMsg> {
-        let j: twitch_api::TwitchUserResponse =
-            self.raw_query(query)?.json().map_err(|why| util::ExitMsg {
-                code: util::ExitCode::CannotParseResponseFromTwitch,
-                msg: format!("Failed to parse response from Twitch, reason: \"{}\".", why),
-            })?;
+    pub fn query<T>(&self, query: String) -> Result<T, util::ExitMsg>
+    where
+        T: twitch_api::TwitchFormResponse + for<'de> serde::Deserialize<'de>,
+    {
+        let j: T = self.raw_query(query)?.json().map_err(|why| util::ExitMsg {
+            code: util::ExitCode::CannotParseResponseFromTwitch,
+            msg: format!("Failed to parse response from Twitch, reason: \"{}\".", why),
+        })?;
 
-        if let Some(errors) = j.errors {
+        if let Some(errors) = j.errors() {
             return Err(util::ExitMsg {
                 code: util::ExitCode::GQLErrorFromTwitch,
                 msg: format!(
