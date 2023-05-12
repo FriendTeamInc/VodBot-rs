@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::twitch_api::{TwitchVideo, TwitchClip};
+use crate::twitch_api::{TwitchClip, TwitchVideo, TwitchVideoComment};
 
 // Pull related data
 
@@ -99,7 +99,7 @@ impl Clip {
         user_id: String,
         user_login: String,
         user_name: String,
-        n: &TwitchClip
+        n: &TwitchClip,
     ) -> Clip {
         Clip {
             id: n.id.to_owned(),
@@ -162,6 +162,27 @@ pub struct ChatMessage {
     pub color: String,
     pub offset: usize,
     pub msg: String,
+}
+impl ChatMessage {
+    pub fn from_data(n: &TwitchVideoComment) -> ChatMessage {
+        let f = &n.message.fragments;
+        ChatMessage {
+            user_name: n.commenter.display_name.to_owned(),
+            color: n.message.user_color.to_owned().unwrap_or("".to_owned()),
+            offset: n.content_offset_seconds,
+            msg: f
+                .iter()
+                .map(|f| {
+                    f.mention
+                        .as_ref()
+                        .map(|f| format!("@{} ", f.display_name))
+                        .unwrap_or("".to_owned())
+                        .to_owned()
+                        + &f.text
+                })
+                .collect(), // ::<Vec<String>>().join(" "),
+        }
+    }
 }
 
 // Stage related data

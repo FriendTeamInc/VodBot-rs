@@ -4,8 +4,9 @@ use std::collections::HashMap;
 
 use crate::gql::GQLClient;
 use crate::twitch_api::{
-    TwitchClipPlaybackAccessTokenResponse, TwitchClipResponse, TwitchUser, TwitchUserResponse,
-    TwitchUserVideoConnection, TwitchVideoPlaybackAccessTokenResponse, TwitchVideoResponse, TwitchUserClipConnection,
+    TwitchClipPlaybackAccessTokenResponse, TwitchClipResponse, TwitchUser,
+    TwitchUserClipConnection, TwitchUserResponse, TwitchUserVideoConnection, TwitchVideo,
+    TwitchVideoPlaybackAccessTokenResponse, TwitchVideoResponse,
 };
 use crate::util::ExitMsg;
 use crate::vodbot_api::{ChatMessage, Clip, Vod, VodChapter};
@@ -88,8 +89,10 @@ pub fn get_channels_videos(
                     broadcastType lengthSeconds
                     game {{ id name }}
         }}  }}  }}  }}",
-        client, user_logins,
-        Vod, TwitchUserResponse,
+        client,
+        user_logins,
+        Vod,
+        TwitchUserResponse,
         |v: &TwitchUser, r: &mut Vec<Vod>| {
             let u = v.videos.as_ref().unwrap();
             let mut after = "".to_owned();
@@ -100,7 +103,13 @@ pub fn get_channels_videos(
 
             for s in &u.edges {
                 let c = chapters.get(&s.node.id).unwrap().to_owned();
-                r.push(Vod::from_data(v.id.clone(), v.login.clone(), v.display_name.clone(), &s.node, c));
+                r.push(Vod::from_data(
+                    v.id.clone(),
+                    v.login.clone(),
+                    v.display_name.clone(),
+                    &s.node,
+                    c,
+                ));
 
                 if let Some(c) = s.cursor.to_owned() {
                     after = c;
@@ -143,15 +152,21 @@ pub fn get_channels_clips(
                     game {{ id name }}
                     curator {{ id displayName login }}
         }}  }}  }}  }}",
-        client, user_logins,
-        Clip, TwitchUserResponse,
+        client,
+        user_logins,
+        Clip,
+        TwitchUserResponse,
         |v: &TwitchUser, r: &mut Vec<Clip>| {
-            
             let u = v.clips.as_ref().unwrap();
             let mut after = "".to_owned();
 
             for s in &u.edges {
-                r.push(Clip::from_data(v.id.clone(), v.login.clone(), v.display_name.clone(), &s.node));
+                r.push(Clip::from_data(
+                    v.id.clone(),
+                    v.login.clone(),
+                    v.display_name.clone(),
+                    &s.node,
+                ));
 
                 if let Some(c) = s.cursor.to_owned() {
                     after = c;
@@ -178,95 +193,36 @@ pub fn get_videos_comments(
     // Paged query
     // Get all videos from a list of channels
 
-    let mut queries: HashMap<String, QueryMap> = video_ids
-        .iter()
-        .map(|f| {
-            (
-                "_".to_owned() + f,
-                QueryMap {
-                    next: true,
-                    id: f.clone(),
-                    after: "".to_owned(),
-                },
-            )
-        })
-        .collect();
-    let mut results: HashMap<String, Vec<ChatMessage>> = video_ids
-        .iter()
-        .map(|f| ("_".to_owned() + f, Vec::new()))
-        .collect();
-
-    loop {
-        let q: Vec<_> = queries
-            .values()
-            .cloned()
-            .filter(|f| f.next)
-            .map(|f| {
-                formatdoc! {"
-                    _{}: video( id: \"{}\" ) {{
-                        id title createdAt broadcastType status lengthSeconds
-                        comments( after: \"{}\", contentOffsetSeconds: 0 ) {{
-                            pageInfo {{ hasNextPage }}
-                            edges {{ cursor node {{
-                                contentOffsetSeconds
-                                commenter {{ displayName }}
-                                message {{ fragments {{ mention {{ displayName }} text }} userColor }}
-                    }}  }}  }}  }}", f.id, f.id, f.after
-                }
-            })
-            .collect();
-        // We grab title, id, etc because it makes managing results easier.
-        // It is technically wasted bandwidth. Too bad!
-        // TODO: Fix that?
-
-        let j: TwitchVideoResponse = client.query(format!("{{ {} }}", q.join("\n")))?;
-
-        for (k, v) in j.data.unwrap() {
-            let q = queries.get_mut(&k).unwrap();
-            let r = results.get_mut(&k).unwrap();
-
+    mac_request!(
+        "
+        _{}: video( id: \"{}\" ) {{
+            id title createdAt broadcastType status lengthSeconds
+            comments( after: \"{}\", contentOffsetSeconds: 0 ) {{
+                pageInfo {{ hasNextPage }}
+                edges {{ cursor node {{
+                    contentOffsetSeconds
+                    commenter {{ displayName }}
+                    message {{ fragments {{ mention {{ displayName }} text }} userColor }}
+        }}  }}  }}  }}",
+        client,
+        video_ids,
+        ChatMessage,
+        TwitchVideoResponse,
+        |v: &TwitchVideo, r: &mut Vec<ChatMessage>| {
             let u = v.comments.as_ref().unwrap();
-
-            q.next = u.page_info.has_next_page;
+            let mut after = "".to_owned();
 
             for s in &u.edges {
-                let n = &s.node;
-                let f = &n.message.fragments;
-
-                r.push(ChatMessage {
-                    user_name: n.commenter.display_name.to_owned(),
-                    color: n.message.user_color.to_owned().unwrap_or("".to_owned()),
-                    offset: n.content_offset_seconds,
-                    msg: f
-                        .iter()
-                        .map(|f| {
-                            f.mention
-                                .as_ref()
-                                .map(|f| format!("@{} ", f.display_name))
-                                .unwrap_or("".to_owned())
-                                .to_owned()
-                                + &f.text
-                        })
-                        .collect(), // ::<Vec<String>>().join(" "),
-                });
+                r.push(ChatMessage::from_data(&s.node));
 
                 if let Some(c) = s.cursor.to_owned() {
-                    q.after = c;
+                    after = c;
                 }
             }
+
+            Ok((u.page_info.has_next_page, after))
         }
-
-        if !queries.values().any(|f| f.next) {
-            break;
-        }
-    }
-
-    let results: HashMap<String, Vec<ChatMessage>> = results
-        .iter()
-        .map(|(k, v)| (k[1..].to_owned(), v.to_owned()))
-        .collect();
-
-    Ok(results)
+    )
 }
 
 pub fn get_video_comments(
