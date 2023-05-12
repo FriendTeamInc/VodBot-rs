@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::twitch_api::TwitchVideo;
+use crate::twitch_api::{TwitchVideo, TwitchClip};
 
 // Pull related data
 
@@ -93,6 +93,57 @@ pub struct Clip {
 
     pub vod_id: String,
     // pub url: String,
+}
+impl Clip {
+    pub fn from_data(
+        user_id: String,
+        user_login: String,
+        user_name: String,
+        n: &TwitchClip
+    ) -> Clip {
+        Clip {
+            id: n.id.to_owned(),
+            slug: n.slug.to_owned(),
+            streamer_id: user_id,
+            streamer_login: user_login,
+            streamer_name: user_name,
+            clipper_id: n
+                .curator
+                .as_ref()
+                .map(|f| f.id.to_owned())
+                .unwrap_or("".to_owned()),
+            clipper_login: n
+                .curator
+                .as_ref()
+                .map(|f| f.login.to_owned())
+                .unwrap_or("".to_owned()),
+            clipper_name: n
+                .curator
+                .as_ref()
+                .map(|f| f.display_name.to_owned())
+                .unwrap_or("".to_owned()),
+            game_id: n
+                .game
+                .as_ref()
+                .map(|f| f.id.to_owned())
+                .unwrap_or("".to_owned()),
+            game_name: n
+                .game
+                .as_ref()
+                .map(|f| f.name.to_owned())
+                .unwrap_or("".to_owned()),
+            title: n.title.to_owned(),
+            created_at: n.created_at.to_owned(),
+            duration: n.duration_seconds,
+            offset: n.video_offset_secconds.unwrap_or(0),
+            view_count: n.view_count,
+            vod_id: n
+                .video
+                .as_ref()
+                .map(|f| f.id.to_owned())
+                .unwrap_or("".to_owned()),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
