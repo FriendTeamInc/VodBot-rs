@@ -44,12 +44,12 @@ pub fn run(config_path: PathBuf, json: bool, ids: Vec<String>) -> Result<(), uti
     }
 
     let client = gql::GQLClient::new(conf.pull.gql_client_id);
-    // let v = twitch::get_channel_videos(&client, "notquiteapex".to_owned())?;
-    // println!("{:?}", v);
+    let v = twitch::get_channel_videos(&client, "notquiteapex".to_owned())?;
+    println!("{:#?}", v);
     // let v = twitch::get_channel_clips(&client, "notquiteapex".to_owned())?;
     // println!("{:?}", v);
-    let v = twitch::get_video_comments(&client, "1811624369".to_owned())?;
-    println!("{:?}", v);
+    // let v = twitch::get_videos_comments(&client, vec!["1811624369".to_owned()])?;
+    // println!("{:#?}", v);
 
     Ok(())
 }

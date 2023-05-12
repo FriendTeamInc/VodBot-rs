@@ -10,10 +10,10 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VodChapter {
-    pub position: String,
-    pub duration: String,
+    pub description: String,
+    pub position: usize,
+    pub duration: usize,
     // pub r#type: VodChapterType,
-    pub filepath: PathBuf,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

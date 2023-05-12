@@ -55,10 +55,13 @@ impl GQLClient {
     where
         T: twitch_api::TwitchFormResponse + for<'de> serde::Deserialize<'de>,
     {
-        let s = self.raw_query(query)?.text().unwrap();
+        let s = self.raw_query(query.clone())?.text().unwrap();
         let j: T = serde_json::from_str(&s).map_err(|why| util::ExitMsg {
             code: util::ExitCode::CannotParseResponseFromTwitch,
-            msg: format!("Failed to parse response from Twitch, reason: \"{}\".\nResponse: `{}`", why, s),
+            msg: format!(
+                "Failed to parse response from Twitch, reason: \"{}\".\nQuery: `{}`\nResponse: `{}`",
+                why, query, s
+            ),
         })?;
 
         if let Some(errors) = j.errors() {

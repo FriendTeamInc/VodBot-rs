@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::gql::GQLClient;
 use crate::twitch_api::{TwitchUserResponse, TwitchVideoResponse};
 use crate::util::ExitMsg;
-use crate::vodbot_api::{ChatMessage, Clip, Vod};
+use crate::vodbot_api::{ChatMessage, Clip, Vod, VodChapter};
 
 use indoc::formatdoc;
 
@@ -74,6 +74,7 @@ pub fn get_channels_videos(
             // For each Vod, lets get it's vod chapters now too
             // TODO: do that, and map them into each new object
             let vod_ids: Vec<_> = u.edges.iter().map(|f| f.node.id.clone()).collect();
+            let chapters = get_videos_chapters(client, vod_ids)?;
 
             for s in &u.edges {
                 let n = &s.node;
@@ -91,7 +92,7 @@ pub fn get_channels_videos(
                         .unwrap_or("".to_owned()),
                     title: n.title.to_owned(),
                     created_at: n.created_at.to_owned(),
-                    chapters: Vec::new(),
+                    chapters: chapters.get(&n.id).unwrap().to_owned(),
                     duration: n.length_seconds,
                     has_chat: false,
                 });
@@ -301,15 +302,17 @@ pub fn get_videos_comments(
                     user_name: n.commenter.display_name.to_owned(),
                     color: n.message.user_color.to_owned().unwrap_or("".to_owned()),
                     offset: n.content_offset_seconds,
-                    msg: f.iter().map(|f|
-                        f
-                        .mention
-                        .as_ref()
-                        .map(|f| format!("@{} ", f.display_name))
-                        .unwrap_or("".to_owned())
-                        .to_owned()
-                        + &f.text
-                    ).collect(), // ::<Vec<String>>().join(" "),
+                    msg: f
+                        .iter()
+                        .map(|f| {
+                            f.mention
+                                .as_ref()
+                                .map(|f| format!("@{} ", f.display_name))
+                                .unwrap_or("".to_owned())
+                                .to_owned()
+                                + &f.text
+                        })
+                        .collect(), // ::<Vec<String>>().join(" "),
                 });
 
                 if let Some(c) = s.cursor.to_owned() {
@@ -331,7 +334,10 @@ pub fn get_videos_comments(
     Ok(results)
 }
 
-pub fn get_video_comments(client: &GQLClient, video_id: String) -> Result<Vec<ChatMessage>, ExitMsg> {
+pub fn get_video_comments(
+    client: &GQLClient,
+    video_id: String,
+) -> Result<Vec<ChatMessage>, ExitMsg> {
     Ok(get_videos_comments(client, vec![video_id])?
         .values()
         .last()
@@ -339,31 +345,104 @@ pub fn get_video_comments(client: &GQLClient, video_id: String) -> Result<Vec<Ch
         .to_owned())
 }
 
-pub fn _get_video_chapters(client: &GQLClient, video_id: String) -> Result<(), ExitMsg> {
+pub fn get_videos_chapters(
+    client: &GQLClient,
+    video_ids: Vec<String>,
+) -> Result<HashMap<String, Vec<VodChapter>>, ExitMsg> {
     // Paged query
-    // Get all "chapters" (like game changes) from a video
+    // Get all videos from a list of channels
 
-    let after = "";
+    let mut queries: HashMap<String, QueryMap> = video_ids
+        .iter()
+        .map(|f| {
+            (
+                "_".to_owned() + f,
+                QueryMap {
+                    has_next_page: true,
+                    id: f.clone(),
+                    after_page: "".to_owned(),
+                },
+            )
+        })
+        .collect();
+    let mut results: HashMap<String, Vec<VodChapter>> = video_ids
+        .iter()
+        .map(|f| ("_".to_owned() + f, Vec::new()))
+        .collect();
+
     loop {
-        let q = formatdoc! {"
-            {{  video( id: \"{}\" ) {{
-                moments(
-                    after: \"{}\", first: 100,
-                    momentRequestType: VIDEO_CHAPTER_MARKERS
-                ) {{
-                    edges {{ cursor node {{
-                        description type
-                        positionMilliseconds
-                        durationMilliseconds
-            }}  }}  }}  }}  }}", video_id, after
-        };
+        let q: Vec<_> = queries
+            .values()
+            .cloned()
+            .filter(|f| f.has_next_page)
+            .map(|f| {
+                formatdoc! {"
+                    _{}: video( id: \"{}\" ) {{
+                        id title createdAt broadcastType status lengthSeconds
+                        moments(
+                            after: \"{}\", first: 100,
+                            momentRequestType: VIDEO_CHAPTER_MARKERS
+                        ) {{
+                            pageInfo {{ hasNextPage }}
+                            edges {{ cursor node {{
+                                description
+                                positionMilliseconds
+                                durationMilliseconds
+                    }}  }}  }}  }}", f.id, f.id, f.after_page
+                }
+            })
+            .collect();
+        // We grab title, id, etc because it makes managing results easier.
+        // It is technically wasted bandwidth. Too bad!
+        // TODO: Fix that?
 
-        // let _j = client.query(q)?;
+        let j: TwitchVideoResponse = client.query(format!("{{ {} }}", q.join("\n")))?;
 
-        break;
+        for (k, v) in j.data.unwrap() {
+            let q = queries.get_mut(&k).unwrap();
+            let r = results.get_mut(&k).unwrap();
+
+            let u = v.moments.as_ref().unwrap();
+
+            q.has_next_page = u.page_info.has_next_page;
+
+            for s in &u.edges {
+                let n = &s.node;
+
+                r.push(VodChapter {
+                    description: n.description.to_owned(),
+                    position: n.position_milliseconds / 1000,
+                    duration: n.duration_milliseconds / 1000,
+                });
+
+                if let Some(c) = s.cursor.to_owned() {
+                    q.after_page = c;
+                }
+            }
+        }
+
+        if !queries.values().any(|f| f.has_next_page) {
+            break;
+        }
     }
 
-    Ok(())
+    let results: HashMap<String, Vec<VodChapter>> = results
+        .iter()
+        .map(|(k, v)| (k[1..].to_owned(), v.to_owned()))
+        .collect();
+
+    Ok(results)
+}
+
+pub fn _get_video_chapters(
+    client: &GQLClient,
+    video_id: String,
+) -> Result<Vec<VodChapter>, ExitMsg> {
+    Ok(get_videos_chapters(client, vec![video_id])?
+        .values()
+        .last()
+        .unwrap()
+        .to_owned())
 }
 
 pub fn _get_channel(client: &GQLClient, user_login: String) -> Result<(), ExitMsg> {

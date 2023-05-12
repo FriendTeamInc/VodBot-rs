@@ -101,7 +101,7 @@ pub struct TwitchVideo {
     pub game: Option<TwitchGame>,
     // pub creator: TwitchUserVideoUser,
     pub comments: Option<TwitchVideoCommentConnection>,
-    // pub moments: Option<Vec<TwitchVideoMomentEdge>>,
+    pub moments: Option<TwitchVideoMomentConnection>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -136,6 +136,14 @@ pub struct TwitchVideoComment {
     pub content_offset_seconds: usize,
     pub commenter: TwitchVideoCommentUser,
     pub message: TwitchVideoCommentMessage,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchVideoMoment {
+    pub description: String,
+    pub position_milliseconds: usize,
+    pub duration_milliseconds: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -176,6 +184,13 @@ pub struct TwitchVideoCommentEdge {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TwitchVideoMomentEdge {
+    pub cursor: Option<String>,
+    pub node: TwitchVideoMoment,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TwitchUserVideoConnection {
     pub page_info: TwitchPageInfo,
     pub edges: Vec<TwitchVideoEdge>,
@@ -193,6 +208,13 @@ pub struct TwitchUserClipConnection {
 pub struct TwitchVideoCommentConnection {
     pub page_info: TwitchPageInfo,
     pub edges: Vec<TwitchVideoCommentEdge>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchVideoMomentConnection {
+    pub page_info: TwitchPageInfo,
+    pub edges: Vec<TwitchVideoMomentEdge>,
 }
 
 #[derive(Debug, Deserialize)]
