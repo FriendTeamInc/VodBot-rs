@@ -2,6 +2,7 @@
 
 use crate::gql::GQLClient;
 use crate::twitch_api::TwitchResponseData;
+use crate::vodbot_api;
 use crate::util::ExitMsg;
 
 use indoc::formatdoc;
@@ -14,24 +15,43 @@ pub fn get_channel_videos(client: &GQLClient, user_login: String) -> Result<(), 
     loop {
         let q = formatdoc! {"
             {{  user( login: \"{}\" ) {{
+                id login displayName
                 videos( after: \"{}\", first: 100, sort: TIME ) {{
                     totalCount pageInfo {{ hasNextPage }}
                     edges {{ cursor node {{
                         id title publishedAt status
                         broadcastType lengthSeconds
                         game {{ id name }}
-                        creator {{ id login displayName }}
             }}  }}  }}  }}  }}", user_login, after
         };
 
         let j = client.query(q)?;
 
         if let Some(TwitchResponseData::User(u)) = j.data {
+            // println!("{:?}", u);
+            let u_id = u.id;
+            let u_login = u.login;
+            let u_name = u.display_name;
+
             if let Some(t) = u.videos {
                 // Round up the videos
-                // TODO: convert TwitchUserVideoNode into a more usable format
-                let r: Vec<_> = t.edges.iter().map(|f| &f.node).collect();
-                println!("{:?}", r);
+                let r: Vec<_> = t.edges
+                    .iter()
+                    .map(|f| vodbot_api::Vod {
+                        id: f.node.id.clone(),
+                        streamer_id: u_id.clone(),
+                        streamer_login: u_login.clone(),
+                        streamer_name: u_name.clone(),
+                        game_id: f.node.game.as_ref().map(|f| Some(f.id.clone())).unwrap_or(None),
+                        game_name: f.node.game.as_ref().map(|f| Some(f.name.clone())).unwrap_or(None),
+                        title: f.node.title.clone(),
+                        created_at: f.node.published_at.clone(),
+                        chapters: Vec::new(),
+                        duration: f.node.length_seconds,
+                        has_chat: false,
+                    })
+                    .collect();
+                println!("{:#?}", r);
 
                 // Handle paging
                 if t.page_info.has_next_page {
@@ -54,6 +74,7 @@ pub fn get_channel_clips(client: &GQLClient, user_login: String) -> Result<(), E
     loop {
         let q = formatdoc! {"
             {{  user( login: \"{}\" ) {{
+                id login displayName
                 clips(
                     after: \"{}\", first: 100,
                     criteria: {{ period: ALL_TIME, sort: CREATED_AT_DESC }}
@@ -63,7 +84,6 @@ pub fn get_channel_clips(client: &GQLClient, user_login: String) -> Result<(), E
                         durationSeconds videoOffsetSeconds
                         video {{ id }}
                         game {{ id name }}
-                        broadcaster {{ id displayName login }}
                         curator {{ id displayName login }}
             }}  }}  }}  }}  }}", user_login, after
         };

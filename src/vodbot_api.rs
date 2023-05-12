@@ -1,7 +1,9 @@
 // Structs for handling VodBot specifically generated data
 
-use serde::{Deserialize, Serialize};
+use crate::twitch_api;
+
 use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 
 // Pull related data
 

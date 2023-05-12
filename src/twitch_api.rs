@@ -96,7 +96,7 @@ pub struct TwitchUserVideoNode {
     pub status: TwitchVideoStatus,
     pub length_seconds: usize,
     pub game: Option<TwitchGame>,
-    pub creator: TwitchUserVideoUser,
+    // pub creator: TwitchUserVideoUser,
 }
 
 #[derive(Debug, Deserialize)]
@@ -117,9 +117,9 @@ pub struct TwitchUserVideoConnection {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TwitchUser {
-    pub id: Option<String>,
-    pub login: Option<String>,
-    pub display_name: Option<String>,
+    pub id: String,
+    pub login: String,
+    pub display_name: String,
     pub roles: Option<TwitchUserRoles>,
     pub stream: Option<TwitchUserStream>,
     pub videos: Option<TwitchUserVideoConnection>,
