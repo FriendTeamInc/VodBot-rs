@@ -5,6 +5,7 @@ use crate::gql;
 use crate::twitch;
 use crate::util;
 
+use indoc::printdoc;
 use regex::Regex;
 use std::path::PathBuf;
 
@@ -44,15 +45,35 @@ pub fn run(config_path: PathBuf, json: bool, ids: Vec<String>) -> Result<(), uti
     }
 
     let client = gql::GQLClient::new(conf.pull.gql_client_id);
-    // let v = twitch::get_channel_videos(&client, "notquiteapex".to_owned())?;
-    // let v = twitch::get_channels_videos(&client, vec!["notquiteapex".to_owned()])?;
-    // println!("{:#?}", v);
-    // let v = twitch::get_channel_clips(&client, "notquiteapex".to_owned())?;
-    // println!("{:#?}", v);
-    let v = twitch::get_videos_comments(&client, vec!["1811624369".to_owned()])?;
-    println!("{:?}", v);
-    // let v = twitch::get_video_playback_access_token(&client, "1811624369".to_owned())?;
-    // println!("{:#?}", v);
+    printdoc!(
+        "
+        get_channel_videos:               \n{:?}\n
+        get_channels_videos:              \n{:?}\n
+        get_video_chapters:               \n{:?}\n
+        get_videos_chapters:              \n{:?}\n
+        get_video_comments:               \n{:?}\n
+        get_videos_comments:              \n{:?}\n
+        get_video_playback_access_token:  \n{:?}\n
+        get_video_playback_access_tokens: \n{:?}\n
+        \n\n
+        get_channel_clips:                \n{:?}\n
+        get_channels_clips:               \n{:?}\n
+        get_clip_playback_access_token:   \n{:?}\n
+        get_clip_playback_access_tokens:  \n{:?}\n
+        \n",
+        twitch::get_channel_videos(&client, "vodbot_fti".to_owned())?,
+        twitch::get_channels_videos(&client, vec!["vodbot_fti".to_owned()])?,
+        twitch::get_video_chapters(&client, "1818343419".to_owned())?,
+        twitch::get_videos_chapters(&client, vec!["1818343419".to_owned()])?,
+        twitch::get_video_comments(&client, "1818343419".to_owned())?,
+        twitch::get_videos_comments(&client, vec!["1818343419".to_owned()])?,
+        "Not Implemented Yet!", // twitch::get_video_playback_access_token(&client, "1818343419".to_owned())?,
+        "Not Implemented Yet!", // twitch::get_video_playback_access_tokens(&client, vec!["1811624369".to_owned()])?,
+        twitch::get_channel_clips(&client, "vodbot_fti".to_owned())?,
+        twitch::get_channels_clips(&client, vec!["vodbot_fti".to_owned()])?,
+        "Not Implemented Yet!",
+        "Not Implemented Yet!",
+    );
 
     Ok(())
 }

@@ -75,7 +75,6 @@ pub fn get_channels_videos(
     client: &GQLClient,
     user_logins: Vec<String>,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
-    // Paged query
     // Get all videos from a list of channels
 
     mac_request!(
@@ -133,7 +132,6 @@ pub fn get_channels_clips(
     client: &GQLClient,
     user_logins: Vec<String>,
 ) -> Result<HashMap<String, Vec<Clip>>, ExitMsg> {
-    // Paged query
     // Get all clips from a list of channels
 
     mac_request!(
@@ -190,7 +188,6 @@ pub fn get_videos_comments(
     client: &GQLClient,
     video_ids: Vec<String>,
 ) -> Result<HashMap<String, Vec<ChatMessage>>, ExitMsg> {
-    // Paged query
     // Get all videos from a list of channels
 
     mac_request!(
@@ -240,62 +237,29 @@ pub fn get_videos_chapters(
     client: &GQLClient,
     video_ids: Vec<String>,
 ) -> Result<HashMap<String, Vec<VodChapter>>, ExitMsg> {
-    // Paged query
     // Get all videos from a list of channels
 
-    let mut queries: HashMap<String, QueryMap> = video_ids
-        .iter()
-        .map(|f| {
-            (
-                "_".to_owned() + f,
-                QueryMap {
-                    next: true,
-                    id: f.clone(),
-                    after: "".to_owned(),
-                },
-            )
-        })
-        .collect();
-    let mut results: HashMap<String, Vec<VodChapter>> = video_ids
-        .iter()
-        .map(|f| ("_".to_owned() + f, Vec::new()))
-        .collect();
-
-    loop {
-        let q: Vec<_> = queries
-            .values()
-            .cloned()
-            .filter(|f| f.next)
-            .map(|f| {
-                formatdoc! {"
-                    _{}: video( id: \"{}\" ) {{
-                        id title createdAt broadcastType status lengthSeconds
-                        moments(
-                            after: \"{}\", first: 100,
-                            momentRequestType: VIDEO_CHAPTER_MARKERS
-                        ) {{
-                            pageInfo {{ hasNextPage }}
-                            edges {{ cursor node {{
-                                description
-                                positionMilliseconds
-                                durationMilliseconds
-                    }}  }}  }}  }}", f.id, f.id, f.after
-                }
-            })
-            .collect();
-        // We grab title, id, etc because it makes managing results easier.
-        // It is technically wasted bandwidth. Too bad!
-        // TODO: Fix that?
-
-        let j: TwitchVideoResponse = client.query(format!("{{ {} }}", q.join("\n")))?;
-
-        for (k, v) in j.data.unwrap() {
-            let q = queries.get_mut(&k).unwrap();
-            let r = results.get_mut(&k).unwrap();
-
+    mac_request!(
+        "
+        _{}: video( id: \"{}\" ) {{
+            id title createdAt broadcastType status lengthSeconds
+            moments(
+                after: \"{}\", first: 100,
+                momentRequestType: VIDEO_CHAPTER_MARKERS
+            ) {{
+                pageInfo {{ hasNextPage }}
+                edges {{ cursor node {{
+                    description
+                    positionMilliseconds
+                    durationMilliseconds
+        }}  }}  }}  }}",
+        client,
+        video_ids,
+        VodChapter,
+        TwitchVideoResponse,
+        |v: &TwitchVideo, r: &mut Vec<VodChapter>| {
             let u = v.moments.as_ref().unwrap();
-
-            q.next = u.page_info.has_next_page;
+            let mut after = "".to_owned();
 
             for s in &u.edges {
                 let n = &s.node;
@@ -307,25 +271,16 @@ pub fn get_videos_chapters(
                 });
 
                 if let Some(c) = s.cursor.to_owned() {
-                    q.after = c;
+                    after = c;
                 }
             }
+
+            Ok((u.page_info.has_next_page, after))
         }
-
-        if !queries.values().any(|f| f.next) {
-            break;
-        }
-    }
-
-    let results: HashMap<String, Vec<VodChapter>> = results
-        .iter()
-        .map(|(k, v)| (k[1..].to_owned(), v.to_owned()))
-        .collect();
-
-    Ok(results)
+    )
 }
 
-pub fn _get_video_chapters(
+pub fn get_video_chapters(
     client: &GQLClient,
     video_id: String,
 ) -> Result<Vec<VodChapter>, ExitMsg> {
@@ -334,6 +289,85 @@ pub fn _get_video_chapters(
         .last()
         .unwrap()
         .to_owned())
+}
+
+pub fn get_videos_playback_access_token(client: &GQLClient, video_ids: Vec<String>) -> Result<HashMap<String, Vec<VodChapter>>, ExitMsg> {
+    mac_request!(
+        "
+        _{}: video( id: \"{}\" ) {{
+            id title createdAt broadcastType status lengthSeconds
+            moments(
+                after: \"{}\", first: 100,
+                momentRequestType: VIDEO_CHAPTER_MARKERS
+            ) {{
+                pageInfo {{ hasNextPage }}
+                edges {{ cursor node {{
+                    description
+                    positionMilliseconds
+                    durationMilliseconds
+        }}  }}  }}  }}",
+        client,
+        video_ids,
+        VodChapter,
+        TwitchVideoResponse,
+        |v: &TwitchVideo, r: &mut Vec<VodChapter>| {
+            let u = v.moments.as_ref().unwrap();
+            let mut after = "".to_owned();
+
+            for s in &u.edges {
+                let n = &s.node;
+
+                r.push(VodChapter {
+                    description: n.description.to_owned(),
+                    position: n.position_milliseconds / 1000,
+                    duration: n.duration_milliseconds / 1000,
+                });
+
+                if let Some(c) = s.cursor.to_owned() {
+                    after = c;
+                }
+            }
+
+            Ok((u.page_info.has_next_page, after))
+        }
+    )
+}
+
+pub fn get_video_playback_access_token(
+    client: &GQLClient,
+    video_id: String,
+) -> Result<(), ExitMsg> {
+    // Single query
+    // Get playback access token (for downloading videos)
+
+    let q = formatdoc! {"
+        {{ video(id: \"{}\") {{
+            playbackAccessToken(
+                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
+            ) {{ signature value }}
+        }} }}", video_id
+    };
+
+    let _j: TwitchVideoPlaybackAccessTokenResponse = client.query(q)?;
+
+    Ok(())
+}
+
+pub fn get_clip_playback_access_token(client: &GQLClient, clip_id: String) -> Result<(), ExitMsg> {
+    // Single query
+    // Get playback access token (for downloading clips)
+
+    let q = formatdoc! {"
+        {{ clip(id: \"{}\") {{
+            playbackAccessToken(
+                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
+            ) {{ signature value }}
+        }} }}", clip_id
+    };
+
+    let _j: TwitchClipPlaybackAccessTokenResponse = client.query(q)?;
+
+    Ok(())
 }
 
 pub fn _get_channel(client: &GQLClient, user_login: String) -> Result<(), ExitMsg> {
@@ -393,43 +427,6 @@ pub fn _get_clip(client: &GQLClient, clip_slug: String) -> Result<(), ExitMsg> {
     };
 
     let _j: TwitchClipResponse = client.query(q)?;
-
-    Ok(())
-}
-
-pub fn get_video_playback_access_token(
-    client: &GQLClient,
-    video_id: String,
-) -> Result<(), ExitMsg> {
-    // Single query
-    // Get playback access token (for downloading videos)
-
-    let q = formatdoc! {"
-        {{ video(id: \"{}\") {{
-            playbackAccessToken(
-                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
-            ) {{ signature value }}
-        }} }}", video_id
-    };
-
-    let _j: TwitchVideoPlaybackAccessTokenResponse = client.query(q)?;
-
-    Ok(())
-}
-
-pub fn get_clip_playback_access_token(client: &GQLClient, clip_id: String) -> Result<(), ExitMsg> {
-    // Single query
-    // Get playback access token (for downloading clips)
-
-    let q = formatdoc! {"
-        {{ clip(id: \"{}\") {{
-            playbackAccessToken(
-                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
-            ) {{ signature value }}
-        }} }}", clip_id
-    };
-
-    let _j: TwitchClipPlaybackAccessTokenResponse = client.query(q)?;
 
     Ok(())
 }
