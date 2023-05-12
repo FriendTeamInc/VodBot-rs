@@ -230,25 +230,23 @@ pub struct TwitchUser {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TwitchResponsePlaybackAccessToken {
+#[serde(rename_all = "camelCase")]
+pub struct TwitchPlaybackAccessToken {
     pub value: String,
     pub signature: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum TwitchResponseData {
-    User(TwitchUser),
-    Video(()),
-    Clip(()),
-    VideoPlaybackAccessToken(TwitchResponsePlaybackAccessToken),
+pub struct TwitchPlaybackAccessTokenData {
+    pub video: Option<TwitchPlaybackAccessTokenToken>,
+    pub clip: Option<TwitchPlaybackAccessTokenToken>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TwitchResponse {
-    pub errors: Option<Vec<TwitchResponseError>>,
-    // extensions: TwitchResponseExtensions,
-    pub data: Option<TwitchResponseData>,
+#[serde(rename_all = "camelCase")]
+pub struct TwitchPlaybackAccessTokenToken {
+    pub playback_access_token: TwitchPlaybackAccessToken,
 }
 
 pub trait TwitchFormResponse {
@@ -272,6 +270,39 @@ pub struct TwitchVideoResponse {
     pub data: Option<HashMap<String, TwitchVideo>>,
 }
 impl TwitchFormResponse for TwitchVideoResponse {
+    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
+        self.errors.as_ref()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TwitchClipResponse {
+    pub errors: Option<Vec<TwitchResponseError>>,
+    pub data: Option<HashMap<String, TwitchClip>>,
+}
+impl TwitchFormResponse for TwitchClipResponse {
+    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
+        self.errors.as_ref()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TwitchVideoPlaybackAccessTokenResponse {
+    pub errors: Option<Vec<TwitchResponseError>>,
+    pub data: Option<TwitchPlaybackAccessTokenData>,
+}
+impl TwitchFormResponse for TwitchVideoPlaybackAccessTokenResponse {
+    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
+        self.errors.as_ref()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TwitchClipPlaybackAccessTokenResponse {
+    pub errors: Option<Vec<TwitchResponseError>>,
+    pub data: Option<TwitchPlaybackAccessTokenData>,
+}
+impl TwitchFormResponse for TwitchClipPlaybackAccessTokenResponse {
     fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
         self.errors.as_ref()
     }

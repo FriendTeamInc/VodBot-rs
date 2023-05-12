@@ -3,7 +3,10 @@
 use std::collections::HashMap;
 
 use crate::gql::GQLClient;
-use crate::twitch_api::{TwitchUserResponse, TwitchVideoResponse};
+use crate::twitch_api::{
+    TwitchClipPlaybackAccessTokenResponse, TwitchClipResponse, TwitchUser, TwitchUserResponse,
+    TwitchUserVideoConnection, TwitchVideoPlaybackAccessTokenResponse, TwitchVideoResponse,
+};
 use crate::util::ExitMsg;
 use crate::vodbot_api::{ChatMessage, Clip, Vod, VodChapter};
 
@@ -11,9 +14,63 @@ use indoc::formatdoc;
 
 #[derive(Debug, Clone)]
 struct QueryMap {
-    has_next_page: bool,
+    next: bool,
     id: String,
-    after_page: String,
+    after: String,
+}
+
+macro_rules! mac_request {
+    ($query:expr, $client:ident, $var:ident, $ret:ident, $jq:ident, $field:ident, $tf:expr) => {{
+        let mut queries: HashMap<String, QueryMap> = $var
+            .iter()
+            .map(|f| {
+                (
+                    "_".to_owned() + f,
+                    QueryMap {
+                        next: true,
+                        id: f.clone(),
+                        after: "".to_owned(),
+                    },
+                )
+            })
+            .collect();
+        let mut results: HashMap<String, Vec<$ret>> = $var
+            .iter()
+            .map(|f| ("_".to_owned() + f, Vec::new()))
+            .collect();
+
+        loop {
+            let q: Vec<_> = queries
+                .values()
+                .cloned()
+                .filter(|f| f.next)
+                .map(|f| formatdoc!($query, f.id, f.id, f.after))
+                .collect();
+
+            let j: $jq = $client.query(format!("{{ {} }}", q.join("\n")))?;
+
+            for (k, v) in j.data.unwrap() {
+                let q = queries.get_mut(&k).unwrap();
+                let r = results.get_mut(&k).unwrap();
+
+                let u = v.$field.as_ref().unwrap();
+                q.next = u.page_info.has_next_page;
+
+                q.after = $tf(u, &v, r)?;
+            }
+
+            if !queries.values().any(|f| f.next) {
+                break;
+            }
+        }
+
+        let results: HashMap<String, Vec<$ret>> = results
+            .iter()
+            .map(|(k, v)| (k[1..].to_owned(), v.to_owned()))
+            .collect();
+
+        Ok(results)
+    }};
 }
 
 pub fn get_channels_videos(
@@ -23,91 +80,37 @@ pub fn get_channels_videos(
     // Paged query
     // Get all videos from a list of channels
 
-    let mut queries: HashMap<String, QueryMap> = user_logins
-        .iter()
-        .map(|f| {
-            (
-                f.clone(),
-                QueryMap {
-                    has_next_page: true,
-                    id: f.clone(),
-                    after_page: "".to_owned(),
-                },
-            )
-        })
-        .collect();
-    let mut results: HashMap<String, Vec<Vod>> = user_logins
-        .iter()
-        .map(|f| (f.clone(), Vec::new()))
-        .collect();
-
-    loop {
-        let q: Vec<_> = queries
-            .values()
-            .cloned()
-            .filter(|f| f.has_next_page)
-            .map(|f| {
-                formatdoc! {"
-                    {}: user( login: \"{}\" ) {{
-                        id login displayName
-                        videos( after: \"{}\", first: 100, sort: TIME ) {{
-                            pageInfo {{ hasNextPage }}
-                            edges {{ cursor node {{
-                                id title createdAt status
-                                broadcastType lengthSeconds
-                                game {{ id name }}
-                    }}  }}  }}  }}", f.id, f.id, f.after_page
-                }
-            })
-            .collect();
-
-        let j: TwitchUserResponse = client.query(format!("{{ {} }}", q.join("\n")))?;
-
-        for (k, v) in j.data.unwrap() {
-            let q = queries.get_mut(&k).unwrap();
-            let r = results.get_mut(&k).unwrap();
-
-            let u = v.videos.as_ref().unwrap();
-
-            q.has_next_page = u.page_info.has_next_page;
-
+    mac_request! {
+        "
+        _{}: user( login: \"{}\" ) {{
+            id login displayName
+            videos( after: \"{}\", first: 100, sort: TIME ) {{
+                pageInfo {{ hasNextPage }}
+                edges {{ cursor node {{
+                    id title createdAt status
+                    broadcastType lengthSeconds
+                    game {{ id name }}
+        }}  }}  }}  }}",
+        client, user_logins,
+        Vod, TwitchUserResponse, videos,
+        |u: &TwitchUserVideoConnection, v: &TwitchUser, r: &mut Vec<Vod>| {
             // For each Vod, lets get it's vod chapters now too
-            // TODO: do that, and map them into each new object
             let vod_ids: Vec<_> = u.edges.iter().map(|f| f.node.id.clone()).collect();
             let chapters = get_videos_chapters(client, vod_ids)?;
 
+            let mut after = "".to_owned();
             for s in &u.edges {
-                let n = &s.node;
-                let g = &n.game;
+                let c = chapters.get(&s.node.id).unwrap().to_owned();
+                r.push(Vod::from_data(v.id.clone(), v.login.clone(), v.display_name.clone(), &s.node, c));
 
-                r.push(Vod {
-                    id: n.id.to_owned(),
-                    streamer_id: v.id.clone(),
-                    streamer_login: v.login.clone(),
-                    streamer_name: v.display_name.clone(),
-                    game_id: g.as_ref().map(|f| f.id.to_owned()).unwrap_or("".to_owned()),
-                    game_name: g
-                        .as_ref()
-                        .map(|f| f.name.to_owned())
-                        .unwrap_or("".to_owned()),
-                    title: n.title.to_owned(),
-                    created_at: n.created_at.to_owned(),
-                    chapters: chapters.get(&n.id).unwrap().to_owned(),
-                    duration: n.length_seconds,
-                    has_chat: false,
-                });
                 if let Some(c) = s.cursor.to_owned() {
-                    q.after_page = c;
+                    after = c;
                 }
             }
-        }
 
-        if !queries.values().any(|f| f.has_next_page) {
-            break;
+            Ok(after)
         }
     }
-
-    Ok(results)
 }
 
 pub fn get_channel_videos(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
@@ -131,9 +134,9 @@ pub fn get_channels_clips(
             (
                 f.clone(),
                 QueryMap {
-                    has_next_page: true,
+                    next: true,
                     id: f.clone(),
-                    after_page: "".to_owned(),
+                    after: "".to_owned(),
                 },
             )
         })
@@ -147,7 +150,7 @@ pub fn get_channels_clips(
         let q: Vec<_> = queries
             .values()
             .cloned()
-            .filter(|f| f.has_next_page)
+            .filter(|f| f.next)
             .map(|f| {
                 formatdoc! {"
                     {}: user( login: \"{}\" ) {{
@@ -163,7 +166,7 @@ pub fn get_channels_clips(
                                 video {{ id }}
                                 game {{ id name }}
                                 curator {{ id displayName login }}
-                    }}  }}  }}  }}", f.id, f.id, f.after_page
+                    }}  }}  }}  }}", f.id, f.id, f.after
                 }
             })
             .collect();
@@ -176,7 +179,7 @@ pub fn get_channels_clips(
 
             let u = v.clips.as_ref().unwrap();
 
-            q.has_next_page = u.page_info.has_next_page;
+            q.next = u.page_info.has_next_page;
 
             for s in &u.edges {
                 let n = &s.node;
@@ -185,7 +188,7 @@ pub fn get_channels_clips(
 
                 r.push(Clip {
                     id: n.id.to_owned(),
-                    slug: n.id.to_owned(),
+                    slug: n.slug.to_owned(),
                     streamer_id: v.id.clone(),
                     streamer_login: v.login.clone(),
                     streamer_name: v.display_name.clone(),
@@ -215,12 +218,12 @@ pub fn get_channels_clips(
                         .unwrap_or("".to_owned()),
                 });
                 if let Some(c) = s.cursor.to_owned() {
-                    q.after_page = c;
+                    q.after = c;
                 }
             }
         }
 
-        if !queries.values().any(|f| f.has_next_page) {
+        if !queries.values().any(|f| f.next) {
             break;
         }
     }
@@ -249,9 +252,9 @@ pub fn get_videos_comments(
             (
                 "_".to_owned() + f,
                 QueryMap {
-                    has_next_page: true,
+                    next: true,
                     id: f.clone(),
-                    after_page: "".to_owned(),
+                    after: "".to_owned(),
                 },
             )
         })
@@ -265,7 +268,7 @@ pub fn get_videos_comments(
         let q: Vec<_> = queries
             .values()
             .cloned()
-            .filter(|f| f.has_next_page)
+            .filter(|f| f.next)
             .map(|f| {
                 formatdoc! {"
                     _{}: video( id: \"{}\" ) {{
@@ -276,7 +279,7 @@ pub fn get_videos_comments(
                                 contentOffsetSeconds
                                 commenter {{ displayName }}
                                 message {{ fragments {{ mention {{ displayName }} text }} userColor }}
-                    }}  }}  }}  }}", f.id, f.id, f.after_page
+                    }}  }}  }}  }}", f.id, f.id, f.after
                 }
             })
             .collect();
@@ -292,7 +295,7 @@ pub fn get_videos_comments(
 
             let u = v.comments.as_ref().unwrap();
 
-            q.has_next_page = u.page_info.has_next_page;
+            q.next = u.page_info.has_next_page;
 
             for s in &u.edges {
                 let n = &s.node;
@@ -316,12 +319,12 @@ pub fn get_videos_comments(
                 });
 
                 if let Some(c) = s.cursor.to_owned() {
-                    q.after_page = c;
+                    q.after = c;
                 }
             }
         }
 
-        if !queries.values().any(|f| f.has_next_page) {
+        if !queries.values().any(|f| f.next) {
             break;
         }
     }
@@ -358,9 +361,9 @@ pub fn get_videos_chapters(
             (
                 "_".to_owned() + f,
                 QueryMap {
-                    has_next_page: true,
+                    next: true,
                     id: f.clone(),
-                    after_page: "".to_owned(),
+                    after: "".to_owned(),
                 },
             )
         })
@@ -374,7 +377,7 @@ pub fn get_videos_chapters(
         let q: Vec<_> = queries
             .values()
             .cloned()
-            .filter(|f| f.has_next_page)
+            .filter(|f| f.next)
             .map(|f| {
                 formatdoc! {"
                     _{}: video( id: \"{}\" ) {{
@@ -388,7 +391,7 @@ pub fn get_videos_chapters(
                                 description
                                 positionMilliseconds
                                 durationMilliseconds
-                    }}  }}  }}  }}", f.id, f.id, f.after_page
+                    }}  }}  }}  }}", f.id, f.id, f.after
                 }
             })
             .collect();
@@ -404,7 +407,7 @@ pub fn get_videos_chapters(
 
             let u = v.moments.as_ref().unwrap();
 
-            q.has_next_page = u.page_info.has_next_page;
+            q.next = u.page_info.has_next_page;
 
             for s in &u.edges {
                 let n = &s.node;
@@ -416,12 +419,12 @@ pub fn get_videos_chapters(
                 });
 
                 if let Some(c) = s.cursor.to_owned() {
-                    q.after_page = c;
+                    q.after = c;
                 }
             }
         }
 
-        if !queries.values().any(|f| f.has_next_page) {
+        if !queries.values().any(|f| f.next) {
             break;
         }
     }
@@ -450,7 +453,7 @@ pub fn _get_channel(client: &GQLClient, user_login: String) -> Result<(), ExitMs
     // Get channel info
 
     let q = formatdoc! {"
-        {{  user( login: \"{}\" ) {{
+        {{  _: user( login: \"{}\" ) {{
             id login displayName
             description createdAt
             roles {{ isAffiliate isPartner }}
@@ -462,7 +465,7 @@ pub fn _get_channel(client: &GQLClient, user_login: String) -> Result<(), ExitMs
         }}  }}  }}", user_login
     };
 
-    // let _j = client.query(q)?;
+    let _j: TwitchUserResponse = client.query(q)?;
 
     Ok(())
 }
@@ -472,7 +475,7 @@ pub fn _get_video(client: &GQLClient, video_id: String) -> Result<(), ExitMsg> {
     // Get video info
 
     let q = formatdoc! {"
-        {{  video( id: \"{}\" ) {{
+        {{  _: video( id: \"{}\" ) {{
             id title publishedAt
             broadcastType lengthSeconds
             game {{ id name }}
@@ -480,7 +483,7 @@ pub fn _get_video(client: &GQLClient, video_id: String) -> Result<(), ExitMsg> {
         }}  }}", video_id
     };
 
-    // let _j = client.query(q)?;
+    let _j: TwitchVideoResponse = client.query(q)?;
 
     Ok(())
 }
@@ -490,7 +493,7 @@ pub fn _get_clip(client: &GQLClient, clip_slug: String) -> Result<(), ExitMsg> {
     // Get clip info
 
     let q = formatdoc! {"
-        {{  clip( slug: \"{}\" ) {{
+        {{  _: clip( slug: \"{}\" ) {{
             id slug title createdAt viewCount
             durationSeconds videoOffsetSeconds
             video {{ id }}
@@ -501,27 +504,44 @@ pub fn _get_clip(client: &GQLClient, clip_slug: String) -> Result<(), ExitMsg> {
         }}  }}", clip_slug
     };
 
-    // let _j = client.query(q)?;
+    let _j: TwitchClipResponse = client.query(q)?;
 
     Ok(())
 }
 
-pub fn _get_playback_access_token(client: &GQLClient, video_id: String) -> Result<(), ExitMsg> {
+pub fn get_video_playback_access_token(
+    client: &GQLClient,
+    video_id: String,
+) -> Result<(), ExitMsg> {
     // Single query
     // Get playback access token (for downloading videos)
 
     let q = formatdoc! {"
-        {{  videoPlaybackAccessToken(
-                id: \"{}\",
-                params: {{
-                    platform:\"web\", playerType:\"site\",
-                    playerBackend:\"mediaplayer\"
-                }}
+        {{ video(id: \"{}\") {{
+            playbackAccessToken(
+                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
             ) {{ signature value }}
-        }}", video_id
+        }} }}", video_id
     };
 
-    // let _j = client.query(q)?;
+    let _j: TwitchVideoPlaybackAccessTokenResponse = client.query(q)?;
+
+    Ok(())
+}
+
+pub fn get_clip_playback_access_token(client: &GQLClient, clip_id: String) -> Result<(), ExitMsg> {
+    // Single query
+    // Get playback access token (for downloading clips)
+
+    let q = formatdoc! {"
+        {{ clip(id: \"{}\") {{
+            playbackAccessToken(
+                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
+            ) {{ signature value }}
+        }} }}", clip_id
+    };
+
+    let _j: TwitchClipPlaybackAccessTokenResponse = client.query(q)?;
 
     Ok(())
 }

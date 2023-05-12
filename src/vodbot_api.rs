@@ -5,6 +5,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::twitch_api::TwitchVideo;
+
 // Pull related data
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -33,6 +35,37 @@ pub struct Vod {
     pub chapters: Vec<VodChapter>,
     pub duration: usize,
     pub has_chat: bool,
+}
+impl Vod {
+    pub fn from_data(
+        user_id: String,
+        user_login: String,
+        user_name: String,
+        v: &TwitchVideo,
+        c: Vec<VodChapter>,
+    ) -> Vod {
+        Vod {
+            id: v.id.to_owned(),
+            streamer_id: user_id,
+            streamer_login: user_login,
+            streamer_name: user_name,
+            game_id: v
+                .game
+                .as_ref()
+                .map(|f| f.id.to_owned())
+                .unwrap_or("".to_owned()),
+            game_name: v
+                .game
+                .as_ref()
+                .map(|f| f.name.to_owned())
+                .unwrap_or("".to_owned()),
+            title: v.title.to_owned(),
+            created_at: v.created_at.to_owned(),
+            chapters: c,
+            duration: v.length_seconds,
+            has_chat: false,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
