@@ -100,7 +100,7 @@ pub struct TwitchVideo {
     pub length_seconds: usize,
     pub game: Option<TwitchGame>,
     // pub creator: TwitchUserVideoUser,
-    // pub comments: Option<Vec<TwitchVideoCommentEdge>>,
+    pub comments: Option<TwitchVideoCommentConnection>,
     // pub moments: Option<Vec<TwitchVideoMomentEdge>>,
 }
 
@@ -108,6 +108,34 @@ pub struct TwitchVideo {
 #[serde(rename_all = "camelCase")]
 pub struct TwitchClipVideoSource {
     pub id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchVideoCommentUser {
+    pub display_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchVideoCommentFragment {
+    pub text: String,
+    pub mention: Option<TwitchVideoCommentUser>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchVideoCommentMessage {
+    pub user_color: Option<String>,
+    pub fragments: Vec<TwitchVideoCommentFragment>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchVideoComment {
+    pub content_offset_seconds: usize,
+    pub commenter: TwitchVideoCommentUser,
+    pub message: TwitchVideoCommentMessage,
 }
 
 #[derive(Debug, Deserialize)]
@@ -141,6 +169,13 @@ pub struct TwitchClipEdge {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TwitchVideoCommentEdge {
+    pub cursor: Option<String>,
+    pub node: TwitchVideoComment,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TwitchUserVideoConnection {
     pub page_info: TwitchPageInfo,
     pub edges: Vec<TwitchVideoEdge>,
@@ -151,6 +186,13 @@ pub struct TwitchUserVideoConnection {
 pub struct TwitchUserClipConnection {
     pub page_info: TwitchPageInfo,
     pub edges: Vec<TwitchClipEdge>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TwitchVideoCommentConnection {
+    pub page_info: TwitchPageInfo,
+    pub edges: Vec<TwitchVideoCommentEdge>,
 }
 
 #[derive(Debug, Deserialize)]

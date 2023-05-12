@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 use crate::gql::GQLClient;
-use crate::twitch_api::TwitchUserResponse;
+use crate::twitch_api::{TwitchUserResponse, TwitchVideoResponse};
 use crate::util::ExitMsg;
-use crate::vodbot_api::{Clip, Vod};
+use crate::vodbot_api::{ChatMessage, Clip, Vod};
 
 use indoc::formatdoc;
 
@@ -31,7 +31,7 @@ pub fn get_channels_videos(
                 QueryMap {
                     has_next_page: true,
                     id: f.clone(),
-                    after_page: String::from(""),
+                    after_page: "".to_owned(),
                 },
             )
         })
@@ -84,14 +84,11 @@ pub fn get_channels_videos(
                     streamer_id: v.id.clone(),
                     streamer_login: v.login.clone(),
                     streamer_name: v.display_name.clone(),
-                    game_id: g
-                        .as_ref()
-                        .map(|f| f.id.to_owned())
-                        .unwrap_or(String::from("")),
+                    game_id: g.as_ref().map(|f| f.id.to_owned()).unwrap_or("".to_owned()),
                     game_name: g
                         .as_ref()
                         .map(|f| f.name.to_owned())
-                        .unwrap_or(String::from("")),
+                        .unwrap_or("".to_owned()),
                     title: n.title.to_owned(),
                     created_at: n.created_at.to_owned(),
                     chapters: Vec::new(),
@@ -135,7 +132,7 @@ pub fn get_channels_clips(
                 QueryMap {
                     has_next_page: true,
                     id: f.clone(),
-                    after_page: String::from(""),
+                    after_page: "".to_owned(),
                 },
             )
         })
@@ -191,26 +188,20 @@ pub fn get_channels_clips(
                     streamer_id: v.id.clone(),
                     streamer_login: v.login.clone(),
                     streamer_name: v.display_name.clone(),
-                    clipper_id: c
-                        .as_ref()
-                        .map(|f| f.id.to_owned())
-                        .unwrap_or(String::from("")),
+                    clipper_id: c.as_ref().map(|f| f.id.to_owned()).unwrap_or("".to_owned()),
                     clipper_login: c
                         .as_ref()
                         .map(|f| f.login.to_owned())
-                        .unwrap_or(String::from("")),
+                        .unwrap_or("".to_owned()),
                     clipper_name: c
                         .as_ref()
                         .map(|f| f.display_name.to_owned())
-                        .unwrap_or(String::from("")),
-                    game_id: g
-                        .as_ref()
-                        .map(|f| f.id.to_owned())
-                        .unwrap_or(String::from("")),
+                        .unwrap_or("".to_owned()),
+                    game_id: g.as_ref().map(|f| f.id.to_owned()).unwrap_or("".to_owned()),
                     game_name: g
                         .as_ref()
                         .map(|f| f.name.to_owned())
-                        .unwrap_or(String::from("")),
+                        .unwrap_or("".to_owned()),
                     title: n.title.to_owned(),
                     created_at: n.created_at.to_owned(),
                     duration: n.duration_seconds,
@@ -220,7 +211,7 @@ pub fn get_channels_clips(
                         .video
                         .as_ref()
                         .map(|f| f.id.to_owned())
-                        .unwrap_or(String::from("")),
+                        .unwrap_or("".to_owned()),
                 });
                 if let Some(c) = s.cursor.to_owned() {
                     q.after_page = c;
@@ -244,28 +235,108 @@ pub fn get_channel_clips(client: &GQLClient, user_login: String) -> Result<Vec<C
         .to_owned())
 }
 
-pub fn _get_video_comments(client: &GQLClient, video_id: String) -> Result<(), ExitMsg> {
+pub fn get_videos_comments(
+    client: &GQLClient,
+    video_ids: Vec<String>,
+) -> Result<HashMap<String, Vec<ChatMessage>>, ExitMsg> {
     // Paged query
-    // Get all "comments" (chat messages) from a video
+    // Get all videos from a list of channels
 
-    let after = "";
+    let mut queries: HashMap<String, QueryMap> = video_ids
+        .iter()
+        .map(|f| {
+            (
+                "_".to_owned() + f,
+                QueryMap {
+                    has_next_page: true,
+                    id: f.clone(),
+                    after_page: "".to_owned(),
+                },
+            )
+        })
+        .collect();
+    let mut results: HashMap<String, Vec<ChatMessage>> = video_ids
+        .iter()
+        .map(|f| ("_".to_owned() + f, Vec::new()))
+        .collect();
+
     loop {
-        let q = formatdoc! {"
-            {{  video( id: \"{}\" ) {{
-                comments( after: \"{}\", contentOffsetSeconds: 0 ) {{
-                    edges {{ cursor node {{
-                        contentOffsetSeconds
-                        commenter {{ displayName }}
-                        message {{ userColor fragments {{ mention {{ displayName }} text }} }}
-            }}  }}  }}  }} }}", video_id, after
-        };
+        let q: Vec<_> = queries
+            .values()
+            .cloned()
+            .filter(|f| f.has_next_page)
+            .map(|f| {
+                formatdoc! {"
+                    _{}: video( id: \"{}\" ) {{
+                        id title createdAt broadcastType status lengthSeconds
+                        comments( after: \"{}\", contentOffsetSeconds: 0 ) {{
+                            pageInfo {{ hasNextPage }}
+                            edges {{ cursor node {{
+                                contentOffsetSeconds
+                                commenter {{ displayName }}
+                                message {{ fragments {{ mention {{ displayName }} text }} userColor }}
+                    }}  }}  }}  }}", f.id, f.id, f.after_page
+                }
+            })
+            .collect();
+        // We grab title, id, etc because it makes managing results easier.
+        // It is technically wasted bandwidth. Too bad!
+        // TODO: Fix that?
 
-        // let _j = client.query(q)?;
+        let j: TwitchVideoResponse = client.query(format!("{{ {} }}", q.join("\n")))?;
 
-        break;
+        for (k, v) in j.data.unwrap() {
+            let q = queries.get_mut(&k).unwrap();
+            let r = results.get_mut(&k).unwrap();
+
+            let u = v.comments.as_ref().unwrap();
+
+            q.has_next_page = u.page_info.has_next_page;
+
+            for s in &u.edges {
+                let n = &s.node;
+                let f = &n.message.fragments;
+
+                r.push(ChatMessage {
+                    user_name: n.commenter.display_name.to_owned(),
+                    color: n.message.user_color.to_owned().unwrap_or("".to_owned()),
+                    offset: n.content_offset_seconds,
+                    msg: f.iter().map(|f|
+                        f
+                        .mention
+                        .as_ref()
+                        .map(|f| format!("@{} ", f.display_name))
+                        .unwrap_or("".to_owned())
+                        .to_owned()
+                        + &f.text
+                    ).collect(), // ::<Vec<String>>().join(" "),
+                });
+
+                if let Some(c) = s.cursor.to_owned() {
+                    q.after_page = c;
+                }
+            }
+        }
+
+        if !queries.values().any(|f| f.has_next_page) {
+            break;
+        }
     }
 
-    Ok(())
+    let results: HashMap<String, Vec<ChatMessage>> = results
+        .iter()
+        .map(|(k, v)| (k[1..].to_owned(), v.to_owned()))
+        .collect();
+
+    Ok(results)
+}
+
+pub fn get_video_comments(client: &GQLClient, video_id: String) -> Result<Vec<ChatMessage>, ExitMsg> {
+    Ok(get_videos_comments(client, vec![video_id])?
+        .values()
+        .last()
+        .unwrap()
+        .to_owned())
 }
 
 pub fn _get_video_chapters(client: &GQLClient, video_id: String) -> Result<(), ExitMsg> {
