@@ -100,10 +100,11 @@ pub struct TwitchVideo {
     pub length_seconds: usize,
     pub game: Option<TwitchGame>,
     // pub creator: TwitchUserVideoUser,
-    pub comments: Option<TwitchVideoCommentConnection>,
-    pub moments: Option<TwitchVideoMomentConnection>,
+    pub comments: Option<TwitchConnection<TwitchVideoComment>>,
+    pub moments: Option<TwitchConnection<TwitchVideoMoment>>,
 }
 impl TwitchData for TwitchVideo {}
+impl TwitchNode for TwitchVideo {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -138,6 +139,7 @@ pub struct TwitchVideoComment {
     pub commenter: TwitchVideoCommentUser,
     pub message: TwitchVideoCommentMessage,
 }
+impl TwitchNode for TwitchVideoComment {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -146,6 +148,7 @@ pub struct TwitchVideoMoment {
     pub position_milliseconds: usize,
     pub duration_milliseconds: usize,
 }
+impl TwitchNode for TwitchVideoMoment {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -162,61 +165,21 @@ pub struct TwitchClip {
     pub curator: Option<TwitchUser>,
 }
 impl TwitchData for TwitchClip {}
+impl TwitchNode for TwitchClip {}
 
+pub trait TwitchNode {}
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TwitchVideoEdge {
+pub struct TwitchEdge<T: TwitchNode> {
     pub cursor: Option<String>,
-    pub node: TwitchVideo,
+    pub node: T,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TwitchClipEdge {
-    pub cursor: Option<String>,
-    pub node: TwitchClip,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoCommentEdge {
-    pub cursor: Option<String>,
-    pub node: TwitchVideoComment,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoMomentEdge {
-    pub cursor: Option<String>,
-    pub node: TwitchVideoMoment,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchUserVideoConnection {
+pub struct TwitchConnection<T: TwitchNode> {
     pub page_info: TwitchPageInfo,
-    pub edges: Vec<TwitchVideoEdge>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchUserClipConnection {
-    pub page_info: TwitchPageInfo,
-    pub edges: Vec<TwitchClipEdge>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoCommentConnection {
-    pub page_info: TwitchPageInfo,
-    pub edges: Vec<TwitchVideoCommentEdge>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoMomentConnection {
-    pub page_info: TwitchPageInfo,
-    pub edges: Vec<TwitchVideoMomentEdge>,
+    pub edges: Vec<TwitchEdge<T>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -227,8 +190,8 @@ pub struct TwitchUser {
     pub display_name: String,
     pub roles: Option<TwitchUserRoles>,
     pub stream: Option<TwitchUserStream>,
-    pub videos: Option<TwitchUserVideoConnection>,
-    pub clips: Option<TwitchUserClipConnection>,
+    pub videos: Option<TwitchConnection<TwitchVideo>>,
+    pub clips: Option<TwitchConnection<TwitchClip>>,
 }
 impl TwitchData for TwitchUser {}
 
