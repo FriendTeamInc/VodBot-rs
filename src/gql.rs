@@ -3,6 +3,7 @@
 use crate::twitch_api;
 use crate::util;
 
+use rand::{Rng, distributions::Alphanumeric};
 use reqwest::blocking::Client;
 use reqwest::blocking::Response;
 use serde::Serialize;
@@ -14,6 +15,7 @@ struct GQLQuery {
 
 pub struct GQLClient {
     client_id: String,
+    device_id: String,
     url: String,
     client: Client,
 }
@@ -21,6 +23,11 @@ impl GQLClient {
     pub fn new(client_id: String) -> GQLClient {
         GQLClient {
             client_id: client_id,
+            device_id: rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(32)
+                .map(char::from)
+                .collect(),
             url: String::from("https://gql.twitch.tv/gql"),
             client: Client::new(),
         }
@@ -31,6 +38,7 @@ impl GQLClient {
             .client
             .post(&self.url)
             .header("Client-ID", &self.client_id)
+            .header("X-Device-ID", &self.device_id)
             .json(&GQLQuery { query: query })
             .send()
             .map_err(|why| util::ExitMsg {

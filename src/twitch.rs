@@ -25,7 +25,7 @@ macro_rules! mac_request {
             .iter()
             .map(|f| {
                 (
-                    "_".to_owned() + f,
+                    "_".to_owned() + &f.replace("-", "_"),
                     QueryMap {
                         next: true,
                         id: f.clone(),
@@ -36,7 +36,7 @@ macro_rules! mac_request {
             .collect();
         let mut results: HashMap<String, Vec<$ret>> = $var
             .iter()
-            .map(|f| ("_".to_owned() + f, Vec::new()))
+            .map(|f| ("_".to_owned() + &f.replace("-", "_"), Vec::new()))
             .collect();
 
         loop {
@@ -44,7 +44,7 @@ macro_rules! mac_request {
                 .values()
                 .cloned()
                 .filter(|f| f.next)
-                .map(|f| formatdoc!($query, f.id, f.id, f.after))
+                .map(|f| formatdoc!($query, f.id.replace("-", "_"), f.id, f.after))
                 .collect();
 
             let j: $jq = $client.query(format!("{{ {} }}", q.join("\n")))?;
@@ -63,7 +63,7 @@ macro_rules! mac_request {
 
         let results: HashMap<String, Vec<$ret>> = results
             .iter()
-            .map(|(k, v)| (k[1..].to_owned(), v.to_owned()))
+            .map(|(k, v)| (k[1..].to_owned().replace("_", "-"), v.to_owned()))
             .collect();
 
         Ok(results)
@@ -333,21 +333,47 @@ pub fn get_video_playback_access_token(
         .to_owned())
 }
 
-pub fn get_clip_playback_access_token(client: &GQLClient, clip_id: String) -> Result<(), ExitMsg> {
-    // Single query
-    // Get playback access token (for downloading clips)
-
-    let q = formatdoc! {"
-        {{ clip(id: \"{}\") {{
+pub fn get_clips_playback_access_tokens(
+    client: &GQLClient,
+    clip_slugs: Vec<String>,
+) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg> {
+    let j = mac_request!(
+        "
+        _{}: clip(slug: \"{}{}\") {{
             playbackAccessToken(
                 params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
-            ) {{ signature value }}
-        }} }}", clip_id
-    };
+            ) {{ value signature }}
+        }}",
+        client,
+        clip_slugs,
+        PlaybackAccessToken,
+        TwitchPlaybackAccessTokenResponse,
+        |v: &TwitchPlaybackAccessTokenToken, r: &mut Vec<PlaybackAccessToken>| {
+            let u = &v.playback_access_token;
 
-    let _j: TwitchPlaybackAccessTokenResponse = client.query(q)?;
+            r.push(PlaybackAccessToken {
+                value: u.value.to_owned(),
+                signature: u.signature.to_owned(),
+            });
 
-    Ok(())
+            Ok((false, "".to_owned()))
+        }
+    )?;
+
+    Ok(j.into_iter()
+        .map(|(k, v)| (k, v.last().unwrap().to_owned()))
+        .collect())
+}
+
+pub fn get_clip_playback_access_token(
+    client: &GQLClient,
+    clip_slug: String,
+) -> Result<PlaybackAccessToken, ExitMsg> {
+    Ok(get_clips_playback_access_tokens(client, vec![clip_slug])?
+        .values()
+        .last()
+        .unwrap()
+        .to_owned())
 }
 
 pub fn _get_channel(client: &GQLClient, user_login: String) -> Result<(), ExitMsg> {
