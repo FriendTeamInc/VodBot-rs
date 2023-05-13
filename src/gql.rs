@@ -1,9 +1,10 @@
 // GQL Client, for making GQL calls to Twitch's backend.
 
 use crate::twitch_api;
+use crate::twitch_api::TwitchResponse;
 use crate::util;
 
-use rand::{Rng, distributions::Alphanumeric};
+use rand::{distributions::Alphanumeric, Rng};
 use reqwest::blocking::Client;
 use reqwest::blocking::Response;
 use serde::Serialize;
@@ -59,12 +60,12 @@ impl GQLClient {
         Ok(resp)
     }
 
-    pub fn query<T>(&self, query: String) -> Result<T, util::ExitMsg>
+    pub fn query<T>(&self, query: String) -> Result<TwitchResponse<T>, util::ExitMsg>
     where
-        T: twitch_api::TwitchFormResponse + for<'de> serde::Deserialize<'de>,
+        T: twitch_api::TwitchData + for<'de> serde::Deserialize<'de>,
     {
         let s = self.raw_query(query.clone())?.text().unwrap();
-        let j: T = serde_json::from_str(&s).map_err(|why| util::ExitMsg {
+        let j: TwitchResponse<T> = serde_json::from_str(&s).map_err(|why| util::ExitMsg {
             code: util::ExitCode::CannotParseResponseFromTwitch,
             msg: format!(
                 "Failed to parse response from Twitch, reason: \"{}\".\nQuery: `{}`\nResponse: `{}`",
@@ -72,7 +73,7 @@ impl GQLClient {
             ),
         })?;
 
-        if let Some(errors) = j.errors() {
+        if let Some(errors) = j.errors {
             return Err(util::ExitMsg {
                 code: util::ExitCode::GQLErrorFromTwitch,
                 msg: format!(

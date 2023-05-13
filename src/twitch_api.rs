@@ -103,6 +103,7 @@ pub struct TwitchVideo {
     pub comments: Option<TwitchVideoCommentConnection>,
     pub moments: Option<TwitchVideoMomentConnection>,
 }
+impl TwitchData for TwitchVideo {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -160,6 +161,7 @@ pub struct TwitchClip {
     pub game: Option<TwitchGame>,
     pub curator: Option<TwitchUser>,
 }
+impl TwitchData for TwitchClip {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -228,6 +230,7 @@ pub struct TwitchUser {
     pub videos: Option<TwitchUserVideoConnection>,
     pub clips: Option<TwitchUserClipConnection>,
 }
+impl TwitchData for TwitchUser {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -248,51 +251,11 @@ pub struct TwitchPlaybackAccessTokenData {
 pub struct TwitchPlaybackAccessTokenToken {
     pub playback_access_token: TwitchPlaybackAccessToken,
 }
+impl TwitchData for TwitchPlaybackAccessTokenToken {}
 
-pub trait TwitchFormResponse {
-    fn errors(&self) -> Option<&Vec<TwitchResponseError>>;
-}
-
+pub trait TwitchData {}
 #[derive(Debug, Deserialize)]
-pub struct TwitchUserResponse {
+pub struct TwitchResponse<T: TwitchData> {
     pub errors: Option<Vec<TwitchResponseError>>,
-    pub data: Option<HashMap<String, TwitchUser>>,
-}
-impl TwitchFormResponse for TwitchUserResponse {
-    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
-        self.errors.as_ref()
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TwitchVideoResponse {
-    pub errors: Option<Vec<TwitchResponseError>>,
-    pub data: Option<HashMap<String, TwitchVideo>>,
-}
-impl TwitchFormResponse for TwitchVideoResponse {
-    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
-        self.errors.as_ref()
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TwitchClipResponse {
-    pub errors: Option<Vec<TwitchResponseError>>,
-    pub data: Option<HashMap<String, TwitchClip>>,
-}
-impl TwitchFormResponse for TwitchClipResponse {
-    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
-        self.errors.as_ref()
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TwitchPlaybackAccessTokenResponse {
-    pub errors: Option<Vec<TwitchResponseError>>,
-    pub data: Option<HashMap<String, TwitchPlaybackAccessTokenToken>>,
-}
-impl TwitchFormResponse for TwitchPlaybackAccessTokenResponse {
-    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
-        self.errors.as_ref()
-    }
+    pub data: Option<HashMap<String, T>>,
 }

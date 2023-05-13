@@ -47,19 +47,19 @@ pub fn run(config_path: PathBuf, _json: bool, ids: Vec<String>) -> Result<(), ut
     let client = gql::GQLClient::new(conf.pull.gql_client_id);
     printdoc!(
         "
-        get_channel_videos:               \n{:#?}\n
-        get_channels_videos:              \n{:#?}\n
-        get_video_chapters:               \n{:#?}\n
-        get_videos_chapters:              \n{:#?}\n
-        get_video_comments:               \n{:#?}\n
-        get_videos_comments:              \n{:#?}\n
-        get_video_playback_access_token:  \n{:#?}\n
-        get_video_playback_access_tokens: \n{:#?}\n
+        get_channel_videos:               \n{:?}\n
+        get_channels_videos:              \n{:?}\n
+        get_video_chapters:               \n{:?}\n
+        get_videos_chapters:              \n{:?}\n
+        get_video_comments:               \n{:?}\n
+        get_videos_comments:              \n{:?}\n
+        get_video_playback_access_token:  \n{:?}\n
+        get_video_playback_access_tokens: \n{:?}\n
         \n\n
-        get_channel_clips:                \n{:#?}\n
-        get_channels_clips:               \n{:#?}\n
-        get_clip_playback_access_token:   \n{:#?}\n
-        get_clip_playback_access_tokens:  \n{:#?}\n
+        get_channel_clips:                \n{:?}\n
+        get_channels_clips:               \n{:?}\n
+        get_clip_playback_access_token:   \n{:?}\n
+        get_clip_playback_access_tokens:  \n{:?}\n
         \n",
         twitch::get_channel_videos(&client, "vodbot_fti".to_owned())?,
         twitch::get_channels_videos(&client, vec!["vodbot_fti".to_owned()])?,
@@ -71,15 +71,24 @@ pub fn run(config_path: PathBuf, _json: bool, ids: Vec<String>) -> Result<(), ut
         twitch::get_videos_playback_access_tokens(&client, vec!["1811624369".to_owned()])?,
         twitch::get_channel_clips(&client, "vodbot_fti".to_owned())?,
         twitch::get_channels_clips(&client, vec!["vodbot_fti".to_owned()])?,
-        twitch::get_clip_playback_access_token(&client, "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned())?,
-        twitch::get_clips_playback_access_tokens(&client, vec!["SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned()])?,
+        twitch::get_clip_playback_access_token(
+            &client,
+            "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned()
+        )?,
+        twitch::get_clips_playback_access_tokens(
+            &client,
+            vec!["SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned()]
+        )?,
     );
 
     // let j = twitch::get_video_playback_access_token(&client, "1818343419".to_owned())?;
     // println!("{}\n{}", j.signature, j.value);
 
-    let j = twitch::get_clip_playback_access_token(&client, "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned())?;
-    println!("{}\n{}", j.signature, j.value);
+    // let j = twitch::get_clip_playback_access_token(
+    //     &client,
+    //     "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned(),
+    // )?;
+    // println!("{}\n{}", j.signature, j.value);
 
     Ok(())
 }

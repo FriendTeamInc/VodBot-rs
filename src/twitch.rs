@@ -4,8 +4,7 @@ use std::collections::HashMap;
 
 use crate::gql::GQLClient;
 use crate::twitch_api::{
-    TwitchClipResponse, TwitchPlaybackAccessTokenResponse, TwitchPlaybackAccessTokenToken,
-    TwitchUser, TwitchUserResponse, TwitchVideo, TwitchVideoResponse,
+    TwitchResponse, TwitchUser, TwitchVideo, TwitchClip, TwitchData, TwitchPlaybackAccessTokenToken,
 };
 use crate::util::ExitMsg;
 use crate::vodbot_api::{ChatMessage, Clip, PlaybackAccessToken, Vod, VodChapter};
@@ -19,55 +18,56 @@ struct QueryMap {
     after: String,
 }
 
-macro_rules! mac_request {
-    ($query:expr, $client:ident, $var:ident, $ret:ident, $jq:ident, $tf:expr) => {{
-        let mut queries: HashMap<String, QueryMap> = $var
-            .iter()
-            .map(|f| {
-                (
-                    "_".to_owned() + &f.replace("-", "_"),
-                    QueryMap {
-                        next: true,
-                        id: f.clone(),
-                        after: "".to_owned(),
-                    },
-                )
-            })
+fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
+    query: Box<dyn Fn(String, String, String) -> String>,
+    client: &GQLClient,
+    var: Vec<String>,
+    mut tf: Box<dyn FnMut(&T, &mut Vec<R>) -> Result<(bool, String), ExitMsg>>,
+) -> Result<HashMap<String, Vec<R>>, ExitMsg> {
+    let mut queries: HashMap<String, QueryMap> = var
+        .iter()
+        .map(|f| {
+            (
+                "_".to_owned() + &f.replace("-", "_"),
+                QueryMap {
+                    next: true,
+                    id: f.clone(),
+                    after: "".to_owned(),
+                },
+            )
+        })
+        .collect();
+    let mut results: HashMap<String, Vec<R>> = var
+        .iter()
+        .map(|f| ("_".to_owned() + &f.replace("-", "_"), Vec::new()))
+        .collect();
+
+    loop {
+        let q: Vec<_> = queries
+            .values()
+            .cloned()
+            .filter(|f| f.next)
+            .map(|f| query(f.id.replace("-", "_"), f.id, f.after))
             .collect();
-        let mut results: HashMap<String, Vec<$ret>> = $var
-            .iter()
-            .map(|f| ("_".to_owned() + &f.replace("-", "_"), Vec::new()))
-            .collect();
 
-        loop {
-            let q: Vec<_> = queries
-                .values()
-                .cloned()
-                .filter(|f| f.next)
-                .map(|f| formatdoc!($query, f.id.replace("-", "_"), f.id, f.after))
-                .collect();
+        let j: TwitchResponse<T> = client.query(format!("{{ {} }}", q.join("\n")))?;
 
-            let j: $jq = $client.query(format!("{{ {} }}", q.join("\n")))?;
+        for (k, v) in j.data.unwrap() {
+            let q = queries.get_mut(&k).unwrap();
+            let r = results.get_mut(&k).unwrap();
 
-            for (k, v) in j.data.unwrap() {
-                let q = queries.get_mut(&k).unwrap();
-                let r = results.get_mut(&k).unwrap();
-
-                (q.next, q.after) = $tf(&v, r)?;
-            }
-
-            if !queries.values().any(|f| f.next) {
-                break;
-            }
+            (q.next, q.after) = tf(&v, r)?;
         }
 
-        let results: HashMap<String, Vec<$ret>> = results
-            .iter()
-            .map(|(k, v)| (k[1..].to_owned().replace("_", "-"), v.to_owned()))
-            .collect();
+        if !queries.values().any(|f| f.next) {
+            break;
+        }
+    }
 
-        Ok(results)
-    }};
+    Ok(results
+        .iter()
+        .map(|(k, v)| (k[1..].to_owned().replace("_", "-"), v.to_owned()))
+        .collect())
 }
 
 pub fn get_channels_videos(
@@ -76,37 +76,39 @@ pub fn get_channels_videos(
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
     // Get all videos from a list of channels
 
-    mac_request!(
-        "
-        _{}: user( login: \"{}\" ) {{
-            id login displayName
-            videos( after: \"{}\", first: 100, sort: TIME ) {{
-                pageInfo {{ hasNextPage }}
-                edges {{ cursor node {{
-                    id title createdAt status
-                    broadcastType lengthSeconds
-                    game {{ id name }}
-        }}  }}  }}  }}",
+    batched_query::<TwitchUser, Vod>(
+        Box::new(|alias, id, after| {
+            formatdoc! {"
+                _{}: user( login: \"{}\" ) {{
+                    id login displayName
+                    videos( after: \"{}\", first: 100, sort: TIME ) {{
+                        pageInfo {{ hasNextPage }}
+                        edges {{ cursor node {{
+                            id title createdAt status
+                            broadcastType lengthSeconds
+                            game {{ id name }}
+                }}  }}  }}  }}",
+                alias, id, after
+            }
+        }),
         client,
         user_logins,
-        Vod,
-        TwitchUserResponse,
-        |v: &TwitchUser, r: &mut Vec<Vod>| {
+        Box::new(|v: &TwitchUser, r: &mut Vec<Vod>| {
             let u = v.videos.as_ref().unwrap();
             let mut after = "".to_owned();
 
             // For each Vod, lets get it's vod chapters now too
-            let vod_ids: Vec<_> = u.edges.iter().map(|f| f.node.id.clone()).collect();
-            let chapters = get_videos_chapters(client, vod_ids)?;
+            // let vod_ids: Vec<_> = u.edges.iter().map(|f| f.node.id.clone()).collect();
+            // let chapters = get_videos_chapters(client, vod_ids)?;
 
             for s in &u.edges {
-                let c = chapters.get(&s.node.id).unwrap().to_owned();
+                // let c = chapters.get(&s.node.id).unwrap().to_owned();
                 r.push(Vod::from_data(
                     v.id.clone(),
                     v.login.clone(),
                     v.display_name.clone(),
                     &s.node,
-                    c,
+                    Vec::new(), //c,
                 ));
 
                 if let Some(c) = s.cursor.to_owned() {
@@ -115,7 +117,7 @@ pub fn get_channels_videos(
             }
 
             Ok((u.page_info.has_next_page, after))
-        }
+        }),
     )
 }
 
@@ -133,27 +135,29 @@ pub fn get_channels_clips(
 ) -> Result<HashMap<String, Vec<Clip>>, ExitMsg> {
     // Get all clips from a list of channels
 
-    mac_request!(
-        "
-        _{}: user( login: \"{}\" ) {{
-            id login displayName
-            clips(
-                after: \"{}\", first: 100,
-                criteria: {{ period: ALL_TIME, sort: VIEWS_DESC }}
-            ) {{
-                pageInfo {{ hasNextPage }}
-                edges {{ cursor node {{
-                    id slug title createdAt viewCount
-                    durationSeconds videoOffsetSeconds
-                    video {{ id }}
-                    game {{ id name }}
-                    curator {{ id displayName login }}
-        }}  }}  }}  }}",
+    batched_query::<TwitchUser, Clip>(
+        Box::new(|alias, id, after| {
+            formatdoc! {"
+                _{}: user( login: \"{}\" ) {{
+                    id login displayName
+                    clips(
+                        after: \"{}\", first: 100,
+                        criteria: {{ period: ALL_TIME, sort: VIEWS_DESC }}
+                    ) {{
+                        pageInfo {{ hasNextPage }}
+                        edges {{ cursor node {{
+                            id slug title createdAt viewCount
+                            durationSeconds videoOffsetSeconds
+                            video {{ id }}
+                            game {{ id name }}
+                            curator {{ id displayName login }}
+                }}  }}  }}  }}",
+                alias, id, after
+            }
+        }),
         client,
         user_logins,
-        Clip,
-        TwitchUserResponse,
-        |v: &TwitchUser, r: &mut Vec<Clip>| {
+        Box::new(|v: &TwitchUser, r: &mut Vec<Clip>| {
             let u = v.clips.as_ref().unwrap();
             let mut after = "".to_owned();
 
@@ -171,7 +175,7 @@ pub fn get_channels_clips(
             }
 
             Ok((u.page_info.has_next_page, after))
-        }
+        }),
     )
 }
 
@@ -189,22 +193,24 @@ pub fn get_videos_comments(
 ) -> Result<HashMap<String, Vec<ChatMessage>>, ExitMsg> {
     // Get all videos from a list of channels
 
-    mac_request!(
-        "
-        _{}: video( id: \"{}\" ) {{
-            id title createdAt broadcastType status lengthSeconds
-            comments( after: \"{}\", contentOffsetSeconds: 0 ) {{
-                pageInfo {{ hasNextPage }}
-                edges {{ cursor node {{
-                    contentOffsetSeconds
-                    commenter {{ displayName }}
-                    message {{ fragments {{ mention {{ displayName }} text }} userColor }}
-        }}  }}  }}  }}",
+    batched_query::<TwitchVideo, ChatMessage>(
+        Box::new(|alias, id, after| {
+            formatdoc! {"
+                _{}: video( id: \"{}\" ) {{
+                    id title createdAt broadcastType status lengthSeconds
+                    comments( after: \"{}\", contentOffsetSeconds: 0 ) {{
+                        pageInfo {{ hasNextPage }}
+                        edges {{ cursor node {{
+                            contentOffsetSeconds
+                            commenter {{ displayName }}
+                            message {{ fragments {{ mention {{ displayName }} text }} userColor }}
+                }}  }}  }}  }}",
+                alias, id, after
+            }
+        }),
         client,
         video_ids,
-        ChatMessage,
-        TwitchVideoResponse,
-        |v: &TwitchVideo, r: &mut Vec<ChatMessage>| {
+        Box::new(|v: &TwitchVideo, r: &mut Vec<ChatMessage>| {
             let u = v.comments.as_ref().unwrap();
             let mut after = "".to_owned();
 
@@ -217,7 +223,7 @@ pub fn get_videos_comments(
             }
 
             Ok((u.page_info.has_next_page, after))
-        }
+        }),
     )
 }
 
@@ -238,25 +244,27 @@ pub fn get_videos_chapters(
 ) -> Result<HashMap<String, Vec<VodChapter>>, ExitMsg> {
     // Get all videos from a list of channels
 
-    mac_request!(
-        "
-        _{}: video( id: \"{}\" ) {{
-            id title createdAt broadcastType status lengthSeconds
-            moments(
-                after: \"{}\", first: 100,
-                momentRequestType: VIDEO_CHAPTER_MARKERS
-            ) {{
-                pageInfo {{ hasNextPage }}
-                edges {{ cursor node {{
-                    description
-                    positionMilliseconds
-                    durationMilliseconds
-        }}  }}  }}  }}",
+    batched_query::<TwitchVideo, VodChapter>(
+        Box::new(|alias, id, after| {
+            formatdoc! {"
+                _{}: video( id: \"{}\" ) {{
+                    id title createdAt broadcastType status lengthSeconds
+                    moments(
+                        after: \"{}\", first: 100,
+                        momentRequestType: VIDEO_CHAPTER_MARKERS
+                    ) {{
+                        pageInfo {{ hasNextPage }}
+                        edges {{ cursor node {{
+                            description
+                            positionMilliseconds
+                            durationMilliseconds
+                }}  }}  }}  }}",
+                alias, id, after
+            }
+        }),
         client,
         video_ids,
-        VodChapter,
-        TwitchVideoResponse,
-        |v: &TwitchVideo, r: &mut Vec<VodChapter>| {
+        Box::new(|v: &TwitchVideo, r: &mut Vec<VodChapter>| {
             let u = v.moments.as_ref().unwrap();
             let mut after = "".to_owned();
 
@@ -275,7 +283,7 @@ pub fn get_videos_chapters(
             }
 
             Ok((u.page_info.has_next_page, after))
-        }
+        }),
     )
 }
 
@@ -294,27 +302,33 @@ pub fn get_videos_playback_access_tokens(
     client: &GQLClient,
     video_ids: Vec<String>,
 ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg> {
-    let j = mac_request!(
-        "
-        _{}: video(id: \"{}{}\") {{
-            playbackAccessToken(
-                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
-            ) {{ value signature }}
-        }}",
+    // Get all video access tokens from a list of video ids
+
+    let j = batched_query::<TwitchPlaybackAccessTokenToken, PlaybackAccessToken>(
+        Box::new(|alias, id, after| {
+            formatdoc! {"
+                _{}: video(id: \"{}{}\") {{
+                    playbackAccessToken(
+                        params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
+                    ) {{ value signature }}
+                }}",
+                alias, id, after
+            }
+        }),
         client,
         video_ids,
-        PlaybackAccessToken,
-        TwitchPlaybackAccessTokenResponse,
-        |v: &TwitchPlaybackAccessTokenToken, r: &mut Vec<PlaybackAccessToken>| {
-            let u = &v.playback_access_token;
+        Box::new(
+            |v: &TwitchPlaybackAccessTokenToken, r: &mut Vec<PlaybackAccessToken>| {
+                let u = &v.playback_access_token;
 
-            r.push(PlaybackAccessToken {
-                value: u.value.to_owned(),
-                signature: u.signature.to_owned(),
-            });
+                r.push(PlaybackAccessToken {
+                    value: u.value.to_owned(),
+                    signature: u.signature.to_owned(),
+                });
 
-            Ok((false, "".to_owned()))
-        }
+                Ok((false, "".to_owned()))
+            },
+        ),
     )?;
 
     Ok(j.into_iter()
@@ -337,27 +351,33 @@ pub fn get_clips_playback_access_tokens(
     client: &GQLClient,
     clip_slugs: Vec<String>,
 ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg> {
-    let j = mac_request!(
-        "
-        _{}: clip(slug: \"{}{}\") {{
-            playbackAccessToken(
-                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
-            ) {{ value signature }}
-        }}",
+    // Get all video access tokens from a list of video ids
+
+    let j = batched_query::<TwitchPlaybackAccessTokenToken, PlaybackAccessToken>(
+        Box::new(|alias, id, after| {
+            formatdoc! {"
+                _{}: clip(slug: \"{}{}\") {{
+                    playbackAccessToken(
+                        params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
+                    ) {{ value signature }}
+                }}",
+                alias, id, after
+            }
+        }),
         client,
         clip_slugs,
-        PlaybackAccessToken,
-        TwitchPlaybackAccessTokenResponse,
-        |v: &TwitchPlaybackAccessTokenToken, r: &mut Vec<PlaybackAccessToken>| {
-            let u = &v.playback_access_token;
+        Box::new(
+            |v: &TwitchPlaybackAccessTokenToken, r: &mut Vec<PlaybackAccessToken>| {
+                let u = &v.playback_access_token;
 
-            r.push(PlaybackAccessToken {
-                value: u.value.to_owned(),
-                signature: u.signature.to_owned(),
-            });
+                r.push(PlaybackAccessToken {
+                    value: u.value.to_owned(),
+                    signature: u.signature.to_owned(),
+                });
 
-            Ok((false, "".to_owned()))
-        }
+                Ok((false, "".to_owned()))
+            },
+        ),
     )?;
 
     Ok(j.into_iter()
@@ -393,7 +413,7 @@ pub fn _get_channel(client: &GQLClient, user_login: String) -> Result<(), ExitMs
         }}  }}  }}", user_login
     };
 
-    let _j: TwitchUserResponse = client.query(q)?;
+    let _j: TwitchResponse<TwitchUser> = client.query(q)?;
 
     Ok(())
 }
@@ -411,7 +431,7 @@ pub fn _get_video(client: &GQLClient, video_id: String) -> Result<(), ExitMsg> {
         }}  }}", video_id
     };
 
-    let _j: TwitchVideoResponse = client.query(q)?;
+    let _j: TwitchResponse<TwitchVideo> = client.query(q)?;
 
     Ok(())
 }
@@ -432,7 +452,7 @@ pub fn _get_clip(client: &GQLClient, clip_slug: String) -> Result<(), ExitMsg> {
         }}  }}", clip_slug
     };
 
-    let _j: TwitchClipResponse = client.query(q)?;
+    let _j: TwitchResponse<TwitchClip> = client.query(q)?;
 
     Ok(())
 }
