@@ -215,3 +215,10 @@ pub struct StageData {
     // pub thumbnail: Option<ThumbnailData>,
     pub slices: Vec<VideoSlice>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybackAccessToken {
+    pub value: String,
+    pub signature: String,
+}

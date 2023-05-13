@@ -287,22 +287,11 @@ impl TwitchFormResponse for TwitchClipResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TwitchVideoPlaybackAccessTokenResponse {
+pub struct TwitchPlaybackAccessTokenResponse {
     pub errors: Option<Vec<TwitchResponseError>>,
-    pub data: Option<TwitchPlaybackAccessTokenData>,
+    pub data: Option<HashMap<String, TwitchPlaybackAccessTokenToken>>,
 }
-impl TwitchFormResponse for TwitchVideoPlaybackAccessTokenResponse {
-    fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
-        self.errors.as_ref()
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TwitchClipPlaybackAccessTokenResponse {
-    pub errors: Option<Vec<TwitchResponseError>>,
-    pub data: Option<TwitchPlaybackAccessTokenData>,
-}
-impl TwitchFormResponse for TwitchClipPlaybackAccessTokenResponse {
+impl TwitchFormResponse for TwitchPlaybackAccessTokenResponse {
     fn errors(&self) -> Option<&Vec<TwitchResponseError>> {
         self.errors.as_ref()
     }

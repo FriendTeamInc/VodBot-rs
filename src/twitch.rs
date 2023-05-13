@@ -4,12 +4,11 @@ use std::collections::HashMap;
 
 use crate::gql::GQLClient;
 use crate::twitch_api::{
-    TwitchClipPlaybackAccessTokenResponse, TwitchClipResponse, TwitchUser,
-    TwitchUserClipConnection, TwitchUserResponse, TwitchUserVideoConnection, TwitchVideo,
-    TwitchVideoPlaybackAccessTokenResponse, TwitchVideoResponse,
+    TwitchClipResponse, TwitchPlaybackAccessTokenResponse, TwitchPlaybackAccessTokenToken,
+    TwitchUser, TwitchUserResponse, TwitchVideo, TwitchVideoResponse,
 };
 use crate::util::ExitMsg;
-use crate::vodbot_api::{ChatMessage, Clip, Vod, VodChapter};
+use crate::vodbot_api::{ChatMessage, Clip, PlaybackAccessToken, Vod, VodChapter};
 
 use indoc::formatdoc;
 
@@ -291,66 +290,47 @@ pub fn get_video_chapters(
         .to_owned())
 }
 
-pub fn get_videos_playback_access_token(client: &GQLClient, video_ids: Vec<String>) -> Result<HashMap<String, Vec<VodChapter>>, ExitMsg> {
-    mac_request!(
+pub fn get_videos_playback_access_tokens(
+    client: &GQLClient,
+    video_ids: Vec<String>,
+) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg> {
+    let j = mac_request!(
         "
-        _{}: video( id: \"{}\" ) {{
-            id title createdAt broadcastType status lengthSeconds
-            moments(
-                after: \"{}\", first: 100,
-                momentRequestType: VIDEO_CHAPTER_MARKERS
-            ) {{
-                pageInfo {{ hasNextPage }}
-                edges {{ cursor node {{
-                    description
-                    positionMilliseconds
-                    durationMilliseconds
-        }}  }}  }}  }}",
+        _{}: video(id: \"{}{}\") {{
+            playbackAccessToken(
+                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
+            ) {{ value signature }}
+        }}",
         client,
         video_ids,
-        VodChapter,
-        TwitchVideoResponse,
-        |v: &TwitchVideo, r: &mut Vec<VodChapter>| {
-            let u = v.moments.as_ref().unwrap();
-            let mut after = "".to_owned();
+        PlaybackAccessToken,
+        TwitchPlaybackAccessTokenResponse,
+        |v: &TwitchPlaybackAccessTokenToken, r: &mut Vec<PlaybackAccessToken>| {
+            let u = &v.playback_access_token;
 
-            for s in &u.edges {
-                let n = &s.node;
+            r.push(PlaybackAccessToken {
+                value: u.value.to_owned(),
+                signature: u.signature.to_owned(),
+            });
 
-                r.push(VodChapter {
-                    description: n.description.to_owned(),
-                    position: n.position_milliseconds / 1000,
-                    duration: n.duration_milliseconds / 1000,
-                });
-
-                if let Some(c) = s.cursor.to_owned() {
-                    after = c;
-                }
-            }
-
-            Ok((u.page_info.has_next_page, after))
+            Ok((false, "".to_owned()))
         }
-    )
+    )?;
+
+    Ok(j.into_iter()
+        .map(|(k, v)| (k, v.last().unwrap().to_owned()))
+        .collect())
 }
 
 pub fn get_video_playback_access_token(
     client: &GQLClient,
     video_id: String,
-) -> Result<(), ExitMsg> {
-    // Single query
-    // Get playback access token (for downloading videos)
-
-    let q = formatdoc! {"
-        {{ video(id: \"{}\") {{
-            playbackAccessToken(
-                params: {{platform:\"web\",playerType:\"site\",playerBackend:\"mediaplayer\"}}
-            ) {{ signature value }}
-        }} }}", video_id
-    };
-
-    let _j: TwitchVideoPlaybackAccessTokenResponse = client.query(q)?;
-
-    Ok(())
+) -> Result<PlaybackAccessToken, ExitMsg> {
+    Ok(get_videos_playback_access_tokens(client, vec![video_id])?
+        .values()
+        .last()
+        .unwrap()
+        .to_owned())
 }
 
 pub fn get_clip_playback_access_token(client: &GQLClient, clip_id: String) -> Result<(), ExitMsg> {
@@ -365,7 +345,7 @@ pub fn get_clip_playback_access_token(client: &GQLClient, clip_id: String) -> Re
         }} }}", clip_id
     };
 
-    let _j: TwitchClipPlaybackAccessTokenResponse = client.query(q)?;
+    let _j: TwitchPlaybackAccessTokenResponse = client.query(q)?;
 
     Ok(())
 }
