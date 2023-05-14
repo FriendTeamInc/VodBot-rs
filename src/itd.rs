@@ -7,7 +7,7 @@ use std::time::Duration;
 use m3u8_rs::Playlist;
 
 use crate::config::Config;
-use crate::util::{ExitCode, ExitMsg};
+use crate::util::{create_dir, ExitCode, ExitMsg};
 use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod};
 
 pub fn download_vods(
@@ -34,30 +34,21 @@ pub fn download_vod(
     println!("Downloading VOD {}", vod.id);
 
     // get m3u8 quality playlist, first uri is the source quality
-    let uri = get_playlist_source_uri(vod, token, client)?;
+    let uri = get_playlist_source_uri(&vod, token, client)?;
 
     // then we use that uri to grab the video segment playlist, also m3u8
     let resp = client.get(uri).send().map_err(|why| ExitMsg {
         code: ExitCode::PullCannotGetSourcePlaylist,
-        msg: format!(
-            "Failed to get source M3U8 playlist, reason: \"{}\".",
-            why,
-        ),
+        msg: format!("Failed to get source M3U8 playlist, reason: \"{}\".", why,),
     })?;
     let bytes = resp.bytes().map_err(|why| ExitMsg {
         code: ExitCode::PullCannotReadSourcePlaylist,
-        msg: format!(
-            "Failed to read source M3U8 playlist, reason: \"{}\".",
-            why,
-        ),
+        msg: format!("Failed to read source M3U8 playlist, reason: \"{}\".", why,),
     })?;
     let playlist = m3u8_rs::parse_playlist(&bytes.clone())
         .map_err(|why| ExitMsg {
             code: ExitCode::PullCannotParseSourcePlaylist,
-            msg: format!(
-                "Failed to parse source M3U8 playlist, reason: \"{}\".",
-                why,
-            ),
+            msg: format!("Failed to parse source M3U8 playlist, reason: \"{}\".", why,),
         })?
         .1;
 
@@ -68,9 +59,11 @@ pub fn download_vod(
             msg: format!("Failed to use source M3U8 playlist."),
         }),
     }?;
-    
+
     // then we determine what paths each segment should have
-    let temp_dir = &conf.directories.temp.clone().join("vod.id");
+    let temp_dir = &conf.directories.temp.clone().join(vod.id.clone());
+    create_dir(temp_dir)?;
+
     let playlist_path = temp_dir.clone().join("playlist.m3u8");
     let segment_paths: Vec<_> = p
         .segments
@@ -81,7 +74,10 @@ pub fn download_vod(
     // then we start the workers on downloading each segment
     std::fs::write(playlist_path, &bytes).map_err(|why| ExitMsg {
         code: ExitCode::PullCannotWriteSourcePlaylist,
-        msg: format!("Failed to use write M3U8 playlist to disk, reason \"{}\".", why),
+        msg: format!(
+            "Failed to use write M3U8 playlist to disk, reason \"{}\".",
+            why
+        ),
     })?;
 
     // once the download is done, we spawn an ffmpeg process to stitch it all back together
@@ -89,6 +85,10 @@ pub fn download_vod(
     // check that ffmpeg returned as expected, raise error if necessary
 
     // clear out the temp folder, and we're done here!
+    std::fs::remove_dir_all(temp_dir).map_err(|why| ExitMsg {
+        code: ExitCode::PullCannotCleanUpAfterDownload,
+        msg: format!("Failed to clean up after Vod download, reason \"{}\".", why),
+    })?;
 
     Ok(())
 }
@@ -120,7 +120,7 @@ pub fn download_clip(
 }
 
 fn get_playlist_source_uri(
-    vod: Vod,
+    vod: &Vod,
     token: PlaybackAccessToken,
     client: &reqwest::blocking::Client,
 ) -> Result<String, ExitMsg> {
