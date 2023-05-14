@@ -67,7 +67,7 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
 
     Ok(results
         .iter()
-        .map(|(k, v)| (k[1..].to_owned().replace("_", "-"), v.to_owned()))
+        .map(|(k, v)| (queries.get(k).unwrap().id.clone(), v.to_owned()))
         .collect())
 }
 

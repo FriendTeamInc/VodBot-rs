@@ -18,7 +18,7 @@ pub fn run(config_path: PathBuf, mode: cli::PullMode) -> Result<(), ExitMsg> {
     println!("Checking users: {}", users.join(", "));
 
     let save_vods = conf.pull.save_vods;
-    let save_chat = conf.pull.save_chat;
+    // let save_chat = conf.pull.save_chat;
     let save_clips = conf.pull.save_clips;
     // let save_highlights = conf.pull.save_highlights;
     // let save_premieres = conf.pull.save_premieres;
@@ -29,11 +29,7 @@ pub fn run(config_path: PathBuf, mode: cli::PullMode) -> Result<(), ExitMsg> {
         .filter(|f| f.save_vods && save_vods)
         .map(f)
         .collect();
-    let chat: Vec<_> = c
-        .iter()
-        .filter(|f| f.save_chat && save_chat)
-        .map(f)
-        .collect();
+    // let chat: Vec<_> = c.iter().filter(|f| f.save_chat && save_chat).map(f).collect();
     let clips: Vec<_> = c
         .iter()
         .filter(|f| f.save_clips && save_clips)
