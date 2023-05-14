@@ -25,25 +25,26 @@ fn test(client: &GQLClient) -> Result<(), ExitMsg> {
     println!("videos_comments:   \n{:?}", twitch::get_videos_comments(&client, vec!["1818343419".to_owned()])?);
     println!("video_pba_token:   \n{:?}", twitch::get_video_playback_access_token(&client, "1818343419".to_owned())?);
     println!("videos_pba_tokens: \n{:?}", twitch::get_videos_playback_access_tokens(&client, vec!["1811624369".to_owned()])?);
-    println!("                   \n");
+    // println!("                   \n");
     println!("channel_clips:     \n{:?}", twitch::get_channel_clips(&client, "vodbot_fti".to_owned())?);
     println!("channels_clips:    \n{:?}", twitch::get_channels_clips(&client, vec!["vodbot_fti".to_owned()])?);
     println!("clip_pba_token:    \n{:?}", twitch::get_clip_playback_access_token(&client, "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned())?);
     println!("clip_pba_tokens:   \n{:?}", twitch::get_clips_playback_access_tokens(&client, vec!["SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned()])?);
-    println!("                   \n");
-    println!("get_channel: \n{:?}", twitch::get_channel(&client, "vodbot_fti".to_owned())?);
-    println!("get_video:   \n{:?}", twitch::get_video(&client, "1818343419".to_owned())?);
-    println!("get_clip:    \n{:?}", twitch::get_clip(&client, "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned())?);
+    // println!("                   \n");
+    println!("get_channel:       \n{:?}", twitch::get_channel(&client, "vodbot_fti".to_owned())?);
+    println!("get_video:         \n{:?}", twitch::get_video(&client, "1818343419".to_owned())?);
+    println!("get_clip:          \n{:?}", twitch::get_clip(&client, "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned())?);
+    println!("                   \n\n\n\n");
 
     Ok(())
 }
 
 pub fn run(config_path: PathBuf, _json: bool, ids: Vec<String>) -> Result<(), ExitMsg> {
     let set = [
-        (ContentType::Channel, Regex::new(r"^(?P<id>[a-zA-Z0-9_][\w]{4,25})$").unwrap()),
-        (ContentType::Channel, Regex::new(r"^(https?://)?(www\.)?twitch\.tv/(?P<id>[a-zA-Z0-9][\w]{4,25})(\?.*)?$").unwrap()),
         (ContentType::Video, Regex::new(r"^(?P<id>\d+)?$").unwrap()),
         (ContentType::Video, Regex::new(r"^(https?://)?(www\.)?twitch.tv/videos/(?P<id>\d+)(\?.*)?$").unwrap()),
+        (ContentType::Channel, Regex::new(r"^(?P<id>[a-zA-Z0-9][\w]{3,24})$").unwrap()),
+        (ContentType::Channel, Regex::new(r"^(https?://)?(www\.)?twitch\.tv/(?P<id>[a-zA-Z0-9][\w]{3,24})(\?.*)?$").unwrap()),
         (ContentType::Clip, Regex::new(r"^(?P<id>[A-Za-z0-9]+(?:-[A-Za-z0-9_-]{16})?)$").unwrap()),
         (ContentType::Clip, Regex::new(r"^(https?://)?(www\.)?twitch.tv/\w+/clip/(?P<id>[A-Za-z0-9]+(?:-[A-Za-z0-9_-]{16})?)(\?.*)?$").unwrap()),
         (ContentType::Clip, Regex::new(r"^(https?://)?clips\.twitch.tv/(?P<id>[A-Za-z0-9]+(?:-[A-Za-z0-9_-]{16})?)(\?.*)?$").unwrap()),
@@ -61,14 +62,32 @@ pub fn run(config_path: PathBuf, _json: bool, ids: Vec<String>) -> Result<(), Ex
         })
     });
 
+    let client = GQLClient::new(conf.pull.gql_client_id);
+    test(&client)?;
+
     for i in s {
         // we know the type and the id now, we can make queries here (or in a map)
-        println!("{:?} {:?}", i.0, i.1);
+        let j = i.1.to_owned();
+        match i.0 {
+            ContentType::Channel => {
+                let r = twitch::get_channel(&client, j)?;
+                println!("get_channel: \n{:?}\n", r);
+            }
+            ContentType::Video => {
+                let r = twitch::get_video(&client, j.clone())?;
+                if let None = r {
+                    let r = twitch::get_channel(&client, j)?;
+                    println!("get_channel (after video): \n{:?}\n", r);
+                } else {
+                    println!("get_video: \n{:?}\n", r);
+                }
+            }
+            ContentType::Clip => {
+                let r = twitch::get_clip(&client, j)?;
+                println!("get_clip: \n{:?}\n", r);
+            }
+        }
     }
-
-    let client = GQLClient::new(conf.pull.gql_client_id);
-
-    test(&client)?;
 
     Ok(())
 }

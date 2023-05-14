@@ -158,6 +158,6 @@ structstruck::strike! {
                 pub column: usize,
             }>>
         }>>,
-        pub data: Option<HashMap<String, T>>,
+        pub data: Option<HashMap<String, Option<T>>>,
     }
 }

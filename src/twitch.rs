@@ -56,7 +56,8 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
             let q = queries.get_mut(&k).unwrap();
             let r = results.get_mut(&k).unwrap();
 
-            (q.next, q.after) = tf(&client, &v, r)?;
+            // TODO: add check for v to be Some?
+            (q.next, q.after) = tf(&client, &v.unwrap(), r)?;
         }
 
         if !queries.values().any(|f| f.next) {
@@ -384,7 +385,8 @@ pub fn get_channel(client: &GQLClient, user_login: String) -> Result<Option<Twit
             }}  }}  }}", user_login
         })?
         .data
-        .map(|f| f.get("_").unwrap().to_owned()))
+        .map(|f| f.get("_").unwrap().to_owned())
+        .unwrap())
 }
 
 pub fn get_video(client: &GQLClient, video_id: String) -> Result<Option<TwitchVideo>, ExitMsg> {
@@ -399,7 +401,8 @@ pub fn get_video(client: &GQLClient, video_id: String) -> Result<Option<TwitchVi
             }}  }}", video_id
         })?
         .data
-        .map(|f| f.get("_").unwrap().to_owned()))
+        .map(|f| f.get("_").unwrap().to_owned())
+        .unwrap())
 }
 
 pub fn get_clip(client: &GQLClient, clip_slug: String) -> Result<Option<TwitchClip>, ExitMsg> {
@@ -416,5 +419,6 @@ pub fn get_clip(client: &GQLClient, clip_slug: String) -> Result<Option<TwitchCl
             }}  }}", clip_slug
         })?
         .data
-        .map(|f| f.get("_").unwrap().to_owned()))
+        .map(|f| f.get("_").unwrap().to_owned())
+        .unwrap())
 }
