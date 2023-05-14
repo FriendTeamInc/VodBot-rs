@@ -21,8 +21,8 @@ pub struct VodChapter {
     // pub r#type: VodChapterType,
 }
 impl VodChapter {
-    pub fn from_data(n: &TwitchVideoMoment) -> VodChapter {
-        VodChapter {
+    pub fn from_data(n: &TwitchVideoMoment) -> Self {
+        Self {
             description: n.description.to_owned(),
             position: n.position_milliseconds / 1000,
             duration: n.duration_milliseconds / 1000,
@@ -49,8 +49,8 @@ pub struct Vod {
     pub has_chat: bool,
 }
 impl Vod {
-    pub fn from_data(u: &TwitchUser, v: &TwitchVideo, c: Vec<VodChapter>) -> Vod {
-        Vod {
+    pub fn from_data(u: &TwitchUser, v: &TwitchVideo, c: Vec<VodChapter>) -> Self {
+        Self {
             id: v.id.to_owned(),
             streamer_id: u.id.clone(),
             streamer_login: u.login.clone(),
@@ -101,8 +101,8 @@ pub struct Clip {
     // pub url: String,
 }
 impl Clip {
-    pub fn from_data(u: &TwitchUser, n: &TwitchClip) -> Clip {
-        Clip {
+    pub fn from_data(u: &TwitchUser, n: &TwitchClip) -> Self {
+        Self {
             id: n.id.to_owned(),
             slug: n.slug.to_owned(),
             streamer_id: u.id.clone(),
@@ -165,9 +165,9 @@ pub struct ChatMessage {
     pub msg: String,
 }
 impl ChatMessage {
-    pub fn from_data(n: &TwitchVideoComment) -> ChatMessage {
+    pub fn from_data(n: &TwitchVideoComment) -> Self {
         let f = &n.message.fragments;
-        ChatMessage {
+        Self {
             user_name: n.commenter.display_name.to_owned(),
             color: n.message.user_color.to_owned().unwrap_or("".to_owned()),
             offset: n.content_offset_seconds,
@@ -224,8 +224,8 @@ pub struct PlaybackAccessToken {
     pub signature: String,
 }
 impl PlaybackAccessToken {
-    pub fn from_data(u: &TwitchPlaybackAccessToken) -> PlaybackAccessToken {
-        PlaybackAccessToken {
+    pub fn from_data(u: &TwitchPlaybackAccessToken) -> Self {
+        Self {
             value: u.value.to_owned(),
             signature: u.signature.to_owned(),
         }

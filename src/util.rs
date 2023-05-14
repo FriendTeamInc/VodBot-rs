@@ -40,6 +40,8 @@ pub enum ExitCode {
     PullCannotReadSourcePlaylist,
     PullCannotParseSourcePlaylist,
     PullCannotUseSourcePlaylist,
+    PullCannotWriteSourcePlaylist,
+    PullCannotCleanUpAfterDownload,
 }
 
 #[derive(Debug, Clone)]
@@ -47,6 +49,18 @@ pub struct ExitMsg {
     pub code: ExitCode,
     pub msg: String,
 }
+impl std::fmt::Display for ExitMsg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}\nExit code: {:?} ({})",
+            self.msg.as_str(),
+            self.code,
+            self.code.clone() as i32
+        )
+    }
+}
+impl std::error::Error for ExitMsg {}
 
 pub fn create_dir(dir_path: &Path) -> Result<(), ExitMsg> {
     fs::create_dir_all(&dir_path).map_err(|why| ExitMsg {

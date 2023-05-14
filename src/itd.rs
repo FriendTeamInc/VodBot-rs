@@ -40,40 +40,49 @@ pub fn download_vod(
     let resp = client.get(uri).send().map_err(|why| ExitMsg {
         code: ExitCode::PullCannotGetSourcePlaylist,
         msg: format!(
-            "Failed to get source M3U8 playlist from Twitch, reason: \"{}\".",
+            "Failed to get source M3U8 playlist, reason: \"{}\".",
             why,
         ),
     })?;
     let bytes = resp.bytes().map_err(|why| ExitMsg {
         code: ExitCode::PullCannotReadSourcePlaylist,
         msg: format!(
-            "Failed to read source M3U8 playlist from Twitch, reason: \"{}\".",
+            "Failed to read source M3U8 playlist, reason: \"{}\".",
             why,
         ),
     })?;
-    let playlist = m3u8_rs::parse_playlist(&bytes)
+    let playlist = m3u8_rs::parse_playlist(&bytes.clone())
         .map_err(|why| ExitMsg {
             code: ExitCode::PullCannotParseSourcePlaylist,
             msg: format!(
-                "Failed to parse source M3U8 playlist from Twitch, reason: \"{}\".",
+                "Failed to parse source M3U8 playlist, reason: \"{}\".",
                 why,
             ),
         })?
         .1;
 
-    if let Playlist::MediaPlaylist(p) = playlist {
-        let p = p.segments;
-        println!("{:?}", p);
-    } else {
-        return Err(ExitMsg {
+    let p = match playlist {
+        Playlist::MediaPlaylist(p) => Ok(p),
+        _ => Err(ExitMsg {
             code: ExitCode::PullCannotUseSourcePlaylist,
-            msg: format!("Failed to use source M3U8 playlist from Twitch."),
-        });
-    }
-
+            msg: format!("Failed to use source M3U8 playlist."),
+        }),
+    }?;
+    
     // then we determine what paths each segment should have
+    let temp_dir = &conf.directories.temp.clone().join("vod.id");
+    let playlist_path = temp_dir.clone().join("playlist.m3u8");
+    let segment_paths: Vec<_> = p
+        .segments
+        .iter()
+        .map(|f| temp_dir.clone().join(f.uri.clone()))
+        .collect();
 
     // then we start the workers on downloading each segment
+    std::fs::write(playlist_path, &bytes).map_err(|why| ExitMsg {
+        code: ExitCode::PullCannotWriteSourcePlaylist,
+        msg: format!("Failed to use write M3U8 playlist to disk, reason \"{}\".", why),
+    })?;
 
     // once the download is done, we spawn an ffmpeg process to stitch it all back together
 
