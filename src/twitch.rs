@@ -103,13 +103,7 @@ pub fn get_channels_videos(
 
             for s in &u.edges {
                 let c = chapters.get(&s.node.id).unwrap().to_owned();
-                r.push(Vod::from_data(
-                    v.id.clone(),
-                    v.login.clone(),
-                    v.display_name.clone(),
-                    &s.node,
-                    c,
-                ));
+                r.push(Vod::from_data(v, &s.node, c));
 
                 if let Some(c) = s.cursor.to_owned() {
                     after = c;
@@ -162,12 +156,7 @@ pub fn get_channels_clips(
             let mut after = "".to_owned();
 
             for s in &u.edges {
-                r.push(Clip::from_data(
-                    v.id.clone(),
-                    v.login.clone(),
-                    v.display_name.clone(),
-                    &s.node,
-                ));
+                r.push(Clip::from_data(v, &s.node));
 
                 if let Some(c) = s.cursor.to_owned() {
                     after = c;
@@ -269,13 +258,7 @@ pub fn get_videos_chapters(
             let mut after = "".to_owned();
 
             for s in &u.edges {
-                let n = &s.node;
-
-                r.push(VodChapter {
-                    description: n.description.to_owned(),
-                    position: n.position_milliseconds / 1000,
-                    duration: n.duration_milliseconds / 1000,
-                });
+                r.push(VodChapter::from_data(&s.node));
 
                 if let Some(c) = s.cursor.to_owned() {
                     after = c;
@@ -321,13 +304,7 @@ pub fn get_videos_playback_access_tokens(
             |_: &GQLClient,
              v: &TwitchPlaybackAccessTokenToken,
              r: &mut Vec<PlaybackAccessToken>| {
-                let u = &v.playback_access_token;
-
-                r.push(PlaybackAccessToken {
-                    value: u.value.to_owned(),
-                    signature: u.signature.to_owned(),
-                });
-
+                r.push(PlaybackAccessToken::from_data(&v.playback_access_token));
                 Ok((false, "".to_owned()))
             },
         ),
@@ -372,13 +349,7 @@ pub fn get_clips_playback_access_tokens(
             |_: &GQLClient,
              v: &TwitchPlaybackAccessTokenToken,
              r: &mut Vec<PlaybackAccessToken>| {
-                let u = &v.playback_access_token;
-
-                r.push(PlaybackAccessToken {
-                    value: u.value.to_owned(),
-                    signature: u.signature.to_owned(),
-                });
-
+                r.push(PlaybackAccessToken::from_data(&v.playback_access_token));
                 Ok((false, "".to_owned()))
             },
         ),
@@ -402,8 +373,7 @@ pub fn get_clip_playback_access_token(
 
 pub fn get_channel(client: &GQLClient, user_login: String) -> Result<Option<TwitchUser>, ExitMsg> {
     // Get channel info
-    Ok(
-        client
+    Ok(client
         .query::<TwitchUser>(formatdoc! {"
             {{  _: user( login: \"{}\" ) {{
                 id login displayName description createdAt
@@ -414,14 +384,12 @@ pub fn get_channel(client: &GQLClient, user_login: String) -> Result<Option<Twit
             }}  }}  }}", user_login
         })?
         .data
-        .map(|f| f.get("_").unwrap().to_owned())
-    )
+        .map(|f| f.get("_").unwrap().to_owned()))
 }
 
 pub fn get_video(client: &GQLClient, video_id: String) -> Result<Option<TwitchVideo>, ExitMsg> {
     // Get video info
-    Ok(
-        client
+    Ok(client
         .query::<TwitchVideo>(formatdoc! {"
             {{  _: video( id: \"{}\" ) {{
                 id title createdAt status
@@ -431,14 +399,12 @@ pub fn get_video(client: &GQLClient, video_id: String) -> Result<Option<TwitchVi
             }}  }}", video_id
         })?
         .data
-        .map(|f| f.get("_").unwrap().to_owned())
-    )
+        .map(|f| f.get("_").unwrap().to_owned()))
 }
 
 pub fn get_clip(client: &GQLClient, clip_slug: String) -> Result<Option<TwitchClip>, ExitMsg> {
     // Get clip info
-    Ok(
-        client
+    Ok(client
         .query::<TwitchClip>(formatdoc! {"
             {{  _: clip( slug: \"{}\" ) {{
                 id slug title createdAt viewCount
@@ -450,6 +416,5 @@ pub fn get_clip(client: &GQLClient, clip_slug: String) -> Result<Option<TwitchCl
             }}  }}", clip_slug
         })?
         .data
-        .map(|f| f.get("_").unwrap().to_owned())
-    )
+        .map(|f| f.get("_").unwrap().to_owned()))
 }

@@ -5,7 +5,10 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::twitch_api::{TwitchClip, TwitchVideo, TwitchVideoComment};
+use crate::twitch_api::{
+    TwitchClip, TwitchPlaybackAccessToken, TwitchUser, TwitchVideo, TwitchVideoComment,
+    TwitchVideoMoment,
+};
 
 // Pull related data
 
@@ -16,6 +19,15 @@ pub struct VodChapter {
     pub position: usize,
     pub duration: usize,
     // pub r#type: VodChapterType,
+}
+impl VodChapter {
+    pub fn from_data(n: &TwitchVideoMoment) -> VodChapter {
+        VodChapter {
+            description: n.description.to_owned(),
+            position: n.position_milliseconds / 1000,
+            duration: n.duration_milliseconds / 1000,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -37,18 +49,12 @@ pub struct Vod {
     pub has_chat: bool,
 }
 impl Vod {
-    pub fn from_data(
-        user_id: String,
-        user_login: String,
-        user_name: String,
-        v: &TwitchVideo,
-        c: Vec<VodChapter>,
-    ) -> Vod {
+    pub fn from_data(u: &TwitchUser, v: &TwitchVideo, c: Vec<VodChapter>) -> Vod {
         Vod {
             id: v.id.to_owned(),
-            streamer_id: user_id,
-            streamer_login: user_login,
-            streamer_name: user_name,
+            streamer_id: u.id.clone(),
+            streamer_login: u.login.clone(),
+            streamer_name: u.display_name.clone(),
             game_id: v
                 .game
                 .as_ref()
@@ -95,18 +101,13 @@ pub struct Clip {
     // pub url: String,
 }
 impl Clip {
-    pub fn from_data(
-        user_id: String,
-        user_login: String,
-        user_name: String,
-        n: &TwitchClip,
-    ) -> Clip {
+    pub fn from_data(u: &TwitchUser, n: &TwitchClip) -> Clip {
         Clip {
             id: n.id.to_owned(),
             slug: n.slug.to_owned(),
-            streamer_id: user_id,
-            streamer_login: user_login,
-            streamer_name: user_name,
+            streamer_id: u.id.clone(),
+            streamer_login: u.login.clone(),
+            streamer_name: u.display_name.clone(),
             clipper_id: n
                 .curator
                 .as_ref()
@@ -221,4 +222,12 @@ pub struct StageData {
 pub struct PlaybackAccessToken {
     pub value: String,
     pub signature: String,
+}
+impl PlaybackAccessToken {
+    pub fn from_data(u: &TwitchPlaybackAccessToken) -> PlaybackAccessToken {
+        PlaybackAccessToken {
+            value: u.value.to_owned(),
+            signature: u.signature.to_owned(),
+        }
+    }
 }
