@@ -6,6 +6,7 @@ extern crate dirs;
 mod cli;
 mod config;
 mod gql;
+mod itd;
 mod twitch;
 mod twitch_api;
 mod util;
