@@ -400,63 +400,56 @@ pub fn get_clip_playback_access_token(
         .to_owned())
 }
 
-pub fn _get_channel(client: &GQLClient, user_login: String) -> Result<(), ExitMsg> {
-    // Single query
+pub fn get_channel(client: &GQLClient, user_login: String) -> Result<Option<TwitchUser>, ExitMsg> {
     // Get channel info
-
-    let q = formatdoc! {"
-        {{  _: user( login: \"{}\" ) {{
-            id login displayName
-            description createdAt
-            roles {{ isAffiliate isPartner }}
-            stream {{
-                id title type
-                viewersCount
-                createdAt 
-                game {{ id name }}
-        }}  }}  }}", user_login
-    };
-
-    let _j: TwitchResponse<TwitchUser> = client.query(q)?;
-
-    Ok(())
+    Ok(
+        client
+        .query::<TwitchUser>(formatdoc! {"
+            {{  _: user( login: \"{}\" ) {{
+                id login displayName description createdAt
+                roles {{ isAffiliate isPartner }}
+                stream {{
+                    id title type viewersCount
+                    createdAt game {{ id name }}
+            }}  }}  }}", user_login
+        })?
+        .data
+        .map(|f| f.get("_").unwrap().to_owned())
+    )
 }
 
-pub fn _get_video(client: &GQLClient, video_id: String) -> Result<(), ExitMsg> {
-    // Single query
+pub fn get_video(client: &GQLClient, video_id: String) -> Result<Option<TwitchVideo>, ExitMsg> {
     // Get video info
-
-    let q = formatdoc! {"
-        {{  _: video( id: \"{}\" ) {{
-            id title publishedAt
-            broadcastType lengthSeconds
-            game {{ id name }}
-            creator {{ id login displayName }}
-        }}  }}", video_id
-    };
-
-    let _j: TwitchResponse<TwitchVideo> = client.query(q)?;
-
-    Ok(())
+    Ok(
+        client
+        .query::<TwitchVideo>(formatdoc! {"
+            {{  _: video( id: \"{}\" ) {{
+                id title createdAt status
+                broadcastType lengthSeconds
+                game {{ id name }}
+                creator {{ id login displayName }}
+            }}  }}", video_id
+        })?
+        .data
+        .map(|f| f.get("_").unwrap().to_owned())
+    )
 }
 
-pub fn _get_clip(client: &GQLClient, clip_slug: String) -> Result<(), ExitMsg> {
-    // Single query
+pub fn get_clip(client: &GQLClient, clip_slug: String) -> Result<Option<TwitchClip>, ExitMsg> {
     // Get clip info
-
-    let q = formatdoc! {"
-        {{  _: clip( slug: \"{}\" ) {{
-            id slug title createdAt viewCount
-            durationSeconds videoOffsetSeconds
-            video {{ id }}
-            game {{ id name }}
-            videoQualities {{ frameRate quality sourceURL }}
-            broadcaster {{ id displayName login }}
-            curator {{ id displayName login }}
-        }}  }}", clip_slug
-    };
-
-    let _j: TwitchResponse<TwitchClip> = client.query(q)?;
-
-    Ok(())
+    Ok(
+        client
+        .query::<TwitchClip>(formatdoc! {"
+            {{  _: clip( slug: \"{}\" ) {{
+                id slug title createdAt viewCount
+                durationSeconds videoOffsetSeconds
+                video {{ id }} game {{ id name }}
+                videoQualities {{ frameRate quality sourceURL }}
+                broadcaster {{ id displayName login }}
+                curator {{ id displayName login }}
+            }}  }}", clip_slug
+        })?
+        .data
+        .map(|f| f.get("_").unwrap().to_owned())
+    )
 }

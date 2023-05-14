@@ -80,15 +80,10 @@ pub fn run(config_path: PathBuf, _json: bool, ids: Vec<String>) -> Result<(), ut
             vec!["SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned()]
         )?,
     );
-
-    // let j = twitch::get_video_playback_access_token(&client, "1818343419".to_owned())?;
-    // println!("{}\n{}", j.signature, j.value);
-
-    // let j = twitch::get_clip_playback_access_token(
-    //     &client,
-    //     "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned(),
-    // )?;
-    // println!("{}\n{}", j.signature, j.value);
+    
+    println!("get_channel: {:?}", twitch::get_channel(&client, "vodbot_fti".to_owned())?);
+    println!("get_video:   {:?}", twitch::get_video(&client, "1818343419".to_owned())?);
+    println!("get_clip:    {:?}", twitch::get_clip(&client, "SourHardLEDDBstyle-NMdErh41r1IN9cjm".to_owned())?);
 
     Ok(())
 }

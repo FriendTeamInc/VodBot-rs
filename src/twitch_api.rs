@@ -9,7 +9,7 @@ pub trait TwitchData {}
 pub trait TwitchNode {}
 
 structstruck::strike! {
-    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[derive(Debug, Deserialize, Clone)]]
     #[serde(rename_all = "camelCase")]
     pub struct TwitchVideo {
         pub id: String,
@@ -55,14 +55,14 @@ impl TwitchNode for TwitchVideo {}
 impl TwitchNode for TwitchVideoMoment {}
 
 structstruck::strike! {
-    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[derive(Debug, Deserialize, Clone)]]
     #[strikethrough[serde(rename_all = "camelCase")]]
     pub struct TwitchVideoComment {
         pub content_offset_seconds: usize,
         pub commenter: pub struct TwitchVideoCommentUser {
             pub display_name: String,
         },
-        pub message:
+        pub message: 
         pub struct TwitchVideoCommentMessage {
             pub user_color: Option<String>,
             pub fragments: Vec<pub struct TwitchVideoCommentFragment {
@@ -75,7 +75,7 @@ structstruck::strike! {
 impl TwitchNode for TwitchVideoComment {}
 
 structstruck::strike! {
-    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[derive(Debug, Deserialize, Clone)]]
     #[strikethrough[serde(rename_all = "camelCase")]]
     pub struct TwitchClip {
         pub id: String,
@@ -96,7 +96,7 @@ impl TwitchData for TwitchClip {}
 impl TwitchNode for TwitchClip {}
 
 structstruck::strike! {
-    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[derive(Debug, Deserialize, Clone)]]
     #[strikethrough[serde(rename_all = "camelCase")]]
     pub struct TwitchConnection<T: TwitchNode> {
         pub page_info: pub struct TwitchPageInfo {
@@ -110,7 +110,7 @@ structstruck::strike! {
 }
 
 structstruck::strike! {
-    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[derive(Debug, Deserialize, Clone)]]
     #[strikethrough[serde(rename_all = "camelCase")]]
     pub struct TwitchUser {
         pub id: String,
@@ -135,7 +135,7 @@ structstruck::strike! {
 impl TwitchData for TwitchUser {}
 
 structstruck::strike! {
-    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[derive(Debug, Deserialize, Clone)]]
     #[strikethrough[serde(rename_all = "camelCase")]]
     pub struct TwitchPlaybackAccessTokenToken {
         pub playback_access_token: pub struct TwitchPlaybackAccessToken {
@@ -147,7 +147,7 @@ structstruck::strike! {
 impl TwitchData for TwitchPlaybackAccessTokenToken {}
 
 structstruck::strike! {
-    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[derive(Debug, Deserialize, Clone)]]
     #[strikethrough[serde(rename_all = "camelCase")]]
     pub struct TwitchResponse<T: TwitchData> {
         pub errors: Option<Vec<pub struct TwitchResponseError {
