@@ -89,9 +89,8 @@ pub struct ConfigPull {
 
     pub gql_client_id: String,
 
-    pub max_download_workers: usize,
-    pub download_chunk_size: usize,
-
+    pub download_workers: usize,
+    // pub download_chunk_size: usize,
     pub connection_retries: usize,
     pub connection_timeout: usize,
 }
@@ -106,8 +105,8 @@ impl Default for ConfigPull {
             save_chat: true,
 
             gql_client_id: String::from("kd1unb4b3q4t58fwlpcbzcbnm76a8fp"),
-            max_download_workers: num_cpus::get(),
-            download_chunk_size: 1024,
+            download_workers: num_cpus::get(),
+            // download_chunk_size: 1024,
             connection_retries: 5,
             connection_timeout: 5,
         }
