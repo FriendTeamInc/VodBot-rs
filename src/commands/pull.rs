@@ -79,6 +79,9 @@ pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
     println!("Total Clips: {}", clips_total);
     println!("");
 
+    // create a new client (for making generic http requests)
+    let genclient = reqwest::blocking::Client::new();
+
     // now to download each set of videos per user
     for k in &users {
         println!("Downloading videos for {} ...", k);
@@ -88,14 +91,14 @@ pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
             &client,
             vods.iter().map(|f| f.id.to_owned()).collect(),
         )?;
-        itd::download_vods(&conf, vods, vod_pba_tokens)?;
+        itd::download_vods(&conf, vods, vod_pba_tokens, &genclient)?;
 
         let clips = clips.get(k).unwrap().to_owned();
         let clip_pba_tokens = twitch::get_clips_playback_access_tokens(
             &client,
             clips.iter().map(|f| f.slug.to_owned()).collect(),
         )?;
-        itd::download_clips(&conf, clips, clip_pba_tokens)?;
+        itd::download_clips(&conf, clips, clip_pba_tokens, &genclient)?;
 
         println!("");
     }

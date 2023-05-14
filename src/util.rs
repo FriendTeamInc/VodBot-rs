@@ -31,6 +31,15 @@ pub enum ExitCode {
     InitCannotOpenConfig,
     InitCannotWriteConfig,
     InitCannotSerializeConfig,
+
+    PullCannotGetPlaylistURI,
+    PullCannotReadPlaylistURI,
+    PullCannotParsePlaylistURI,
+    PullCannotFindPlaylistURI,
+    PullCannotGetSourcePlaylist,
+    PullCannotReadSourcePlaylist,
+    PullCannotParseSourcePlaylist,
+    PullCannotUseSourcePlaylist,
 }
 
 #[derive(Debug, Clone)]
