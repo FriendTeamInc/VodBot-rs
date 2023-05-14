@@ -5,11 +5,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use futures::executor::ThreadPool;
 use m3u8_rs::Playlist;
 use reqwest::blocking::Client;
 
-use crate::cli::Cli;
 use crate::config::Config;
 use crate::util::{create_dir, ExitCode, ExitMsg};
 use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod};
@@ -187,15 +185,15 @@ fn workers_download(
     paths: Vec<(PathBuf, String)>,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    let executor = ThreadPool::builder()
-        .pool_size(conf.pull.download_workers)
-        .create()
-        .map_err(|why| ExitMsg {
-            code: ExitCode::PullCannotCreateThreadPool,
-            msg: format!("Failed to create worker thread pool, reason \"{}\".", why),
-        })?;
+    let executor = threadpool::ThreadPool::new(conf.pull.download_workers);
+    
+    let timeout = conf.pull.connection_timeout;
 
-    let futures = paths.into_iter().map(|(p, u)| executor.spawn_ok(async {}));
+    let futures = paths
+        .into_iter()
+        .map(|(p, u)| executor.execute(|| {
+            // download_file(u, p, timeout.clone(), &client.clone()).expect("SHOULD NOT SEE!");
+        }));
 
     Ok(())
 }

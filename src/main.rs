@@ -2,7 +2,7 @@
 
 extern crate clap;
 extern crate dirs;
-extern crate futures;
+extern crate threadpool;
 
 mod cli;
 mod config;
