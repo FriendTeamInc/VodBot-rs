@@ -5,220 +5,159 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchResponseErrorLocation {
-    pub line: usize,
-    pub column: usize,
-}
+pub trait TwitchData {}
+pub trait TwitchNode {}
 
-#[derive(Debug, Deserialize)]
-pub struct TwitchResponseError {
-    pub message: String,
-    pub locations: Option<Vec<TwitchResponseErrorLocation>>,
-    pub path: Option<Vec<String>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TwitchResponseExtensions {
-    #[serde(rename = "durationMilliseconds")]
-    pub duration_milliseconds: usize,
-    #[serde(rename = "requestID")]
-    pub request_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TwitchGame {
-    pub id: String,
-    pub name: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchPageInfo {
-    pub has_next_page: bool,
-    // pub has_previous_page: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchUserStream {
-    pub id: String,
-    pub title: String,
-    pub r#type: String,
-    pub viewers_count: usize,
-    pub created_at: String,
-    pub game: TwitchGame,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchUserRoles {
-    pub is_affiliate: bool,
-    pub is_partner: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum TwitchVideoBroadcastType {
-    Archive,
-    Highlight,
-    Upload,
-    PremiereUpload,
-    PastPremiere,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum TwitchVideoStatus {
-    Recording,
-    Unprocessed,
-    Created,
-    Uploading,
-    PendingTranscode,
-    Transcoding,
-    Failed,
-    Recorded,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchUserVideoUser {
-    pub id: String,
-    pub login: String,
-    pub display_name: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideo {
-    pub id: String,
-    pub title: String,
-    pub created_at: String,
-    pub broadcast_type: TwitchVideoBroadcastType,
-    pub status: TwitchVideoStatus,
-    pub length_seconds: usize,
-    pub game: Option<TwitchGame>,
-    // pub creator: TwitchUserVideoUser,
-    pub comments: Option<TwitchConnection<TwitchVideoComment>>,
-    pub moments: Option<TwitchConnection<TwitchVideoMoment>>,
+structstruck::strike! {
+    #[strikethrough[derive(Debug, Deserialize)]]
+    #[serde(rename_all = "camelCase")]
+    pub struct TwitchVideo {
+        pub id: String,
+        pub title: String,
+        pub created_at: String,
+        pub broadcast_type: pub enum TwitchVideoBroadcastType {
+            #![serde(rename_all = "SCREAMING_SNAKE_CASE")]
+            Archive,
+            Highlight,
+            Upload,
+            PremiereUpload,
+            PastPremiere,
+        },
+        pub status: pub enum TwitchVideoStatus {
+            #![serde(rename_all = "SCREAMING_SNAKE_CASE")]
+            Recording,
+            Unprocessed,
+            Created,
+            Uploading,
+            PendingTranscode,
+            Transcoding,
+            Failed,
+            Recorded,
+        },
+        pub length_seconds: usize,
+        pub game: Option<pub struct TwitchGame {
+            #![serde(rename_all = "camelCase")]
+            pub id: String,
+            pub name: String,
+        }>,
+        // pub creator: TwitchUserVideoUser,
+        pub comments: Option<TwitchConnection<TwitchVideoComment>>,
+        pub moments: Option<TwitchConnection<pub struct TwitchVideoMoment {
+            #![serde(rename_all = "camelCase")]
+            pub description: String,
+            pub position_milliseconds: usize,
+            pub duration_milliseconds: usize,
+        }>>,
+    }
 }
 impl TwitchData for TwitchVideo {}
 impl TwitchNode for TwitchVideo {}
+impl TwitchNode for TwitchVideoMoment {}
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchClipVideoSource {
-    pub id: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoCommentUser {
-    pub display_name: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoCommentFragment {
-    pub text: String,
-    pub mention: Option<TwitchVideoCommentUser>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoCommentMessage {
-    pub user_color: Option<String>,
-    pub fragments: Vec<TwitchVideoCommentFragment>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoComment {
-    pub content_offset_seconds: usize,
-    pub commenter: TwitchVideoCommentUser,
-    pub message: TwitchVideoCommentMessage,
+structstruck::strike! {
+    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[serde(rename_all = "camelCase")]]
+    pub struct TwitchVideoComment {
+        pub content_offset_seconds: usize,
+        pub commenter: pub struct TwitchVideoCommentUser {
+            pub display_name: String,
+        },
+        pub message: 
+        pub struct TwitchVideoCommentMessage {
+            pub user_color: Option<String>,
+            pub fragments: Vec<pub struct TwitchVideoCommentFragment {
+                pub text: String,
+                pub mention: Option<TwitchVideoCommentUser>,
+            }>,
+        },
+    }
 }
 impl TwitchNode for TwitchVideoComment {}
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchVideoMoment {
-    pub description: String,
-    pub position_milliseconds: usize,
-    pub duration_milliseconds: usize,
-}
-impl TwitchNode for TwitchVideoMoment {}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchClip {
-    pub id: String,
-    pub slug: String,
-    pub title: String,
-    pub created_at: String,
-    pub view_count: usize,
-    pub duration_seconds: usize,
-    pub video_offset_secconds: Option<usize>,
-    pub video: Option<TwitchClipVideoSource>,
-    pub game: Option<TwitchGame>,
-    pub curator: Option<TwitchUser>,
+structstruck::strike! {
+    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[serde(rename_all = "camelCase")]]
+    pub struct TwitchClip {
+        pub id: String,
+        pub slug: String,
+        pub title: String,
+        pub created_at: String,
+        pub view_count: usize,
+        pub duration_seconds: usize,
+        pub video_offset_secconds: Option<usize>,
+        pub video: Option<pub struct TwitchClipVideoSource {
+            pub id: String,
+        }>,
+        pub game: Option<TwitchGame>,
+        pub curator: Option<TwitchUser>,
+    }
 }
 impl TwitchData for TwitchClip {}
 impl TwitchNode for TwitchClip {}
 
-pub trait TwitchNode {}
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchEdge<T: TwitchNode> {
-    pub cursor: Option<String>,
-    pub node: T,
+structstruck::strike! {
+    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[serde(rename_all = "camelCase")]]
+    pub struct TwitchConnection<T: TwitchNode> {
+        pub page_info: pub struct TwitchPageInfo {
+            pub has_next_page: bool
+        },
+        pub edges: Vec<pub struct TwitchEdge<T: TwitchNode> {
+            pub cursor: Option<String>,
+            pub node: T,
+        }<T>>,
+    }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchConnection<T: TwitchNode> {
-    pub page_info: TwitchPageInfo,
-    pub edges: Vec<TwitchEdge<T>>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchUser {
-    pub id: String,
-    pub login: String,
-    pub display_name: String,
-    pub roles: Option<TwitchUserRoles>,
-    pub stream: Option<TwitchUserStream>,
-    pub videos: Option<TwitchConnection<TwitchVideo>>,
-    pub clips: Option<TwitchConnection<TwitchClip>>,
+structstruck::strike! {
+    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[serde(rename_all = "camelCase")]]
+    pub struct TwitchUser {
+        pub id: String,
+        pub login: String,
+        pub display_name: String,
+        pub roles: Option<pub struct TwitchUserRoles {
+            pub is_affiliate: bool,
+            pub is_partner: bool,
+        }>,
+        pub stream: Option<pub struct TwitchUserStream {
+            pub id: String,
+            pub title: String,
+            pub r#type: String,
+            pub viewers_count: usize,
+            pub created_at: String,
+            pub game: TwitchGame,
+        }>,
+        pub videos: Option<TwitchConnection<TwitchVideo>>,
+        pub clips: Option<TwitchConnection<TwitchClip>>,
+    }
 }
 impl TwitchData for TwitchUser {}
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchPlaybackAccessToken {
-    pub value: String,
-    pub signature: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchPlaybackAccessTokenData {
-    pub video: Option<TwitchPlaybackAccessTokenToken>,
-    pub clip: Option<TwitchPlaybackAccessTokenToken>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TwitchPlaybackAccessTokenToken {
-    pub playback_access_token: TwitchPlaybackAccessToken,
+structstruck::strike! {
+    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[serde(rename_all = "camelCase")]]
+    pub struct TwitchPlaybackAccessTokenToken {
+        pub playback_access_token: pub struct TwitchPlaybackAccessToken {
+            pub value: String,
+            pub signature: String,
+        },
+    }
 }
 impl TwitchData for TwitchPlaybackAccessTokenToken {}
 
-pub trait TwitchData {}
-#[derive(Debug, Deserialize)]
-pub struct TwitchResponse<T: TwitchData> {
-    pub errors: Option<Vec<TwitchResponseError>>,
-    pub data: Option<HashMap<String, T>>,
+structstruck::strike! {
+    #[strikethrough[derive(Debug, Deserialize)]]
+    #[strikethrough[serde(rename_all = "camelCase")]]
+    pub struct TwitchResponse<T: TwitchData> {
+        pub errors: Option<Vec<pub struct TwitchResponseError {
+            pub message: String,
+            pub path: Option<Vec<String>>,
+            pub locations: Option<Vec<pub struct TwitchResponseErrorLocation {
+                pub line: usize,
+                pub column: usize,
+            }>>
+        }>>,
+        pub data: Option<HashMap<String, T>>,
+    }
 }
