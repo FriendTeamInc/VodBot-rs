@@ -1,15 +1,16 @@
 // Pull command, for grabbing videos off of Twitch
 
-use crate::{cli, itd};
+use crate::cli::PullMode;
 use crate::config::{load_config, ConfigChannel};
 use crate::gql::GQLClient;
+use crate::itd;
 use crate::twitch;
 use crate::util::ExitMsg;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub fn run(config_path: PathBuf, mode: cli::PullMode) -> Result<(), ExitMsg> {
+pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
     let conf = load_config(&config_path)?;
     let c = &conf.channels;
 
@@ -81,13 +82,21 @@ pub fn run(config_path: PathBuf, mode: cli::PullMode) -> Result<(), ExitMsg> {
     // now to download each set of videos per user
     for k in &users {
         println!("Downloading videos for {} ...", k);
-        for v in vods.get(k).unwrap().to_owned() {
-            itd::download_vod(&conf, v)?;
-            // then download chat if we should
-        }
-        for c in clips.get(k).unwrap().to_owned() {
-            itd::download_clip(&conf, c)?;
-        }
+
+        let vods = vods.get(k).unwrap().to_owned();
+        let vod_pba_tokens = twitch::get_videos_playback_access_tokens(
+            &client,
+            vods.iter().map(|f| f.id.to_owned()).collect(),
+        )?;
+        itd::download_vods(&conf, vods, vod_pba_tokens)?;
+
+        let clips = clips.get(k).unwrap().to_owned();
+        let clip_pba_tokens = twitch::get_clips_playback_access_tokens(
+            &client,
+            clips.iter().map(|f| f.slug.to_owned()).collect(),
+        )?;
+        itd::download_clips(&conf, clips, clip_pba_tokens)?;
+
         println!("");
     }
 
