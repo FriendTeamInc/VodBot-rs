@@ -62,7 +62,7 @@ structstruck::strike! {
         pub commenter: pub struct TwitchVideoCommentUser {
             pub display_name: String,
         },
-        pub message: 
+        pub message:
         pub struct TwitchVideoCommentMessage {
             pub user_color: Option<String>,
             pub fragments: Vec<pub struct TwitchVideoCommentFragment {

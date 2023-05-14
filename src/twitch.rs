@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::gql::GQLClient;
 use crate::twitch_api::{
-    TwitchResponse, TwitchUser, TwitchVideo, TwitchClip, TwitchData, TwitchPlaybackAccessTokenToken,
+    TwitchClip, TwitchData, TwitchPlaybackAccessTokenToken, TwitchResponse, TwitchUser, TwitchVideo,
 };
 use crate::util::ExitMsg;
 use crate::vodbot_api::{ChatMessage, Clip, PlaybackAccessToken, Vod, VodChapter};
@@ -22,7 +22,7 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
     query: Box<dyn Fn(String, String, String) -> String>,
     client: &GQLClient,
     var: Vec<String>,
-    mut tf: Box<dyn FnMut(&T, &mut Vec<R>) -> Result<(bool, String), ExitMsg>>,
+    mut tf: Box<dyn FnMut(&GQLClient, &T, &mut Vec<R>) -> Result<(bool, String), ExitMsg>>,
 ) -> Result<HashMap<String, Vec<R>>, ExitMsg> {
     let mut queries: HashMap<String, QueryMap> = var
         .iter()
@@ -56,7 +56,7 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
             let q = queries.get_mut(&k).unwrap();
             let r = results.get_mut(&k).unwrap();
 
-            (q.next, q.after) = tf(&v, r)?;
+            (q.next, q.after) = tf(&client, &v, r)?;
         }
 
         if !queries.values().any(|f| f.next) {
@@ -93,22 +93,22 @@ pub fn get_channels_videos(
         }),
         client,
         user_logins,
-        Box::new(|v: &TwitchUser, r: &mut Vec<Vod>| {
+        Box::new(|client: &GQLClient, v: &TwitchUser, r: &mut Vec<Vod>| {
             let u = v.videos.as_ref().unwrap();
             let mut after = "".to_owned();
 
             // For each Vod, lets get it's vod chapters now too
-            // let vod_ids: Vec<_> = u.edges.iter().map(|f| f.node.id.clone()).collect();
-            // let chapters = get_videos_chapters(client, vod_ids)?;
+            let vod_ids: Vec<_> = u.edges.iter().map(|f| f.node.id.clone()).collect();
+            let chapters = get_videos_chapters(client, vod_ids)?;
 
             for s in &u.edges {
-                // let c = chapters.get(&s.node.id).unwrap().to_owned();
+                let c = chapters.get(&s.node.id).unwrap().to_owned();
                 r.push(Vod::from_data(
                     v.id.clone(),
                     v.login.clone(),
                     v.display_name.clone(),
                     &s.node,
-                    Vec::new(), //c,
+                    c,
                 ));
 
                 if let Some(c) = s.cursor.to_owned() {
@@ -157,7 +157,7 @@ pub fn get_channels_clips(
         }),
         client,
         user_logins,
-        Box::new(|v: &TwitchUser, r: &mut Vec<Clip>| {
+        Box::new(|_: &GQLClient, v: &TwitchUser, r: &mut Vec<Clip>| {
             let u = v.clips.as_ref().unwrap();
             let mut after = "".to_owned();
 
@@ -210,7 +210,7 @@ pub fn get_videos_comments(
         }),
         client,
         video_ids,
-        Box::new(|v: &TwitchVideo, r: &mut Vec<ChatMessage>| {
+        Box::new(|_: &GQLClient, v: &TwitchVideo, r: &mut Vec<ChatMessage>| {
             let u = v.comments.as_ref().unwrap();
             let mut after = "".to_owned();
 
@@ -264,7 +264,7 @@ pub fn get_videos_chapters(
         }),
         client,
         video_ids,
-        Box::new(|v: &TwitchVideo, r: &mut Vec<VodChapter>| {
+        Box::new(|_: &GQLClient, v: &TwitchVideo, r: &mut Vec<VodChapter>| {
             let u = v.moments.as_ref().unwrap();
             let mut after = "".to_owned();
 
@@ -318,7 +318,9 @@ pub fn get_videos_playback_access_tokens(
         client,
         video_ids,
         Box::new(
-            |v: &TwitchPlaybackAccessTokenToken, r: &mut Vec<PlaybackAccessToken>| {
+            |_: &GQLClient,
+             v: &TwitchPlaybackAccessTokenToken,
+             r: &mut Vec<PlaybackAccessToken>| {
                 let u = &v.playback_access_token;
 
                 r.push(PlaybackAccessToken {
@@ -367,7 +369,9 @@ pub fn get_clips_playback_access_tokens(
         client,
         clip_slugs,
         Box::new(
-            |v: &TwitchPlaybackAccessTokenToken, r: &mut Vec<PlaybackAccessToken>| {
+            |_: &GQLClient,
+             v: &TwitchPlaybackAccessTokenToken,
+             r: &mut Vec<PlaybackAccessToken>| {
                 let u = &v.playback_access_token;
 
                 r.push(PlaybackAccessToken {
