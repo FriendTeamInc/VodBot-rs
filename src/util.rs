@@ -42,7 +42,6 @@ pub enum ExitCode {
     PullCannotUseSourcePlaylist,
     PullCannotWriteSourcePlaylist,
     PullCannotCleanUpAfterDownload,
-    PullCannotCreateThreadPool,
     PullCannotGetChunk,
     PullCannotParseChunk,
     PullCannotWriteChunk,

@@ -108,7 +108,7 @@ impl Default for ConfigPull {
             download_workers: num_cpus::get(),
             // download_chunk_size: 1024,
             connection_retries: 5,
-            connection_timeout: 5,
+            connection_timeout: 10,
         }
     }
 }

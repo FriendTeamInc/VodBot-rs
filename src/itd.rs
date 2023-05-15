@@ -68,7 +68,6 @@ pub fn download_vod(
 
     let split_idx = uri.clone().rfind("/").unwrap() + 1;
     uri.split_off(split_idx).truncate(split_idx);
-    println!("{}", uri);
 
     let playlist_path = temp_dir.clone().join("playlist.m3u8");
     let segment_uri_paths: Vec<_> = p
@@ -85,6 +84,7 @@ pub fn download_vod(
             why
         ),
     })?;
+    workers_download(conf, segment_uri_paths, client)?;
 
     // once the download is done, we spawn an ffmpeg process to stitch it all back together
 
@@ -186,14 +186,34 @@ fn workers_download(
     client: &Client,
 ) -> Result<(), ExitMsg> {
     let executor = threadpool::ThreadPool::new(conf.pull.download_workers);
-    
+
     let timeout = conf.pull.connection_timeout;
 
-    let futures = paths
-        .into_iter()
-        .map(|(p, u)| executor.execute(|| {
-            // download_file(u, p, timeout.clone(), &client.clone()).expect("SHOULD NOT SEE!");
-        }));
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    let c = std::sync::Arc::new(client.to_owned());
+
+    let total = paths.len();
+
+    for (p, u) in paths {
+        let tx = tx.clone();
+        let c = c.clone();
+        executor.execute(move || {
+            tx.send(download_file(u, p, timeout.clone(), &c))
+                .expect("YOU SHOULDN'T BE ABLE TO SEE THIS!");
+        });
+    }
+
+    let mut finished: usize = 0;
+    loop {
+        if finished >= total {
+            break;
+        }
+
+        let r = rx.recv();
+        finished += 1;
+        println!("{:?}", r);
+    }
 
     Ok(())
 }
