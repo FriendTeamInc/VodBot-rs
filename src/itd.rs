@@ -198,6 +198,8 @@ fn workers_download(
 
     let total_count = paths.len();
 
+    let start_time = std::time::Instant::now();
+
     for (p, u) in paths {
         let tx = tx.clone();
         let c = c.clone();
@@ -219,15 +221,20 @@ fn workers_download(
 
         // TODO: proper error checking
         dl_size += r.as_ref().unwrap();
-        let perc: f32 = (done_count as f32) / (total_count as f32);
-        let est_size: usize = ((dl_size as f32) / perc) as usize;
+        let perc = (done_count as f32) / (total_count as f32);
+        let est_size = ((dl_size as f32) / perc) as usize;
+        let duration = start_time.elapsed();
+        let dl_speed = ((dl_size as f32) / duration.as_secs_f32()) as usize;
+        let time_left = ((total_count - done_count) as f32) * duration.as_secs_f32() / (done_count as f32);
 
         print!(
-            "\rVod `{}` - {: >3.0}% - {: >8} of {: >8} (SPEED) - (TIME REMAINING)",
+            "\rVod `{}` -  {: >3.0}% -  {: >8} of {: >8} (@ {: >8}/s) -  ({: >4.0}s left)",
             vod.id,
             perc * 100f32,
             format_size(dl_size, 1, true),
             format_size(est_size, 1, true),
+            format_size(dl_speed, 1, true),
+            time_left
         );
         stdout().flush().unwrap();
     }
