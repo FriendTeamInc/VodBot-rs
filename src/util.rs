@@ -75,3 +75,30 @@ pub fn create_dir(dir_path: &Path) -> Result<(), ExitMsg> {
         ),
     })
 }
+
+// replace with the following?
+// https://docs.rs/size_format/latest/size_format/
+// https://docs.rs/bytesize/latest/bytesize/
+pub fn format_size(size: usize, digits: usize, display_units: bool) -> String {
+    let mut size = size as f32;
+    let units = ["B", "kB", "MB", "GB", "PB", "EB"];
+    for u in units {
+        if size < 1000.0 {
+            let t = format!("{:.1$}", size, digits);
+            if display_units {
+                return format!("{} {}", t, u);
+            } else {
+                return format!("{}", t);
+            }
+        }
+
+        size /= 1000.0;
+    }
+
+    let t = format!("{:.1$}", size, digits);
+    if display_units {
+        return format!("{} ZB", t);
+    } else {
+        return format!("{}", t);
+    }
+}

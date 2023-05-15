@@ -2,6 +2,7 @@
 // a bunch of functions that make it easy to to download videos from Twitch
 
 use std::collections::HashMap;
+use std::io::{stdout, Write};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -9,7 +10,7 @@ use m3u8_rs::Playlist;
 use reqwest::blocking::Client;
 
 use crate::config::Config;
-use crate::util::{create_dir, ExitCode, ExitMsg};
+use crate::util::{create_dir, format_size, ExitCode, ExitMsg};
 use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod};
 
 pub fn download_vods(
@@ -33,7 +34,8 @@ pub fn download_vod(
     token: PlaybackAccessToken,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    println!("Downloading VOD {}", vod.id);
+    print!("\rVod `{}` ...", vod.id);
+    stdout().flush().unwrap();
 
     // get m3u8 quality playlist, first uri is the source quality
     let mut uri = get_playlist_source_uri(&vod, token, client)?;
@@ -84,9 +86,9 @@ pub fn download_vod(
             why
         ),
     })?;
-    workers_download(conf, segment_uri_paths, client)?;
+    workers_download(conf, vod, segment_uri_paths, client)?;
 
-    // once the download is done, we spawn an ffmpeg process to stitch it all back together
+    // once the download is done, we spawn an ffmpeg process to stitch it all together
 
     // check that ffmpeg returned as expected, raise error if necessary
 
@@ -120,7 +122,7 @@ pub fn download_clip(
     token: PlaybackAccessToken,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    println!("Downloading Clip {}", clip.slug);
+    println!("Clip `{}` ...", clip.slug);
 
     Ok(())
 }
@@ -182,6 +184,7 @@ fn get_playlist_source_uri(
 
 fn workers_download(
     conf: &Config,
+    vod: Vod,
     paths: Vec<(PathBuf, String)>,
     client: &Client,
 ) -> Result<(), ExitMsg> {
@@ -193,7 +196,7 @@ fn workers_download(
 
     let c = std::sync::Arc::new(client.to_owned());
 
-    let total = paths.len();
+    let total_count = paths.len();
 
     for (p, u) in paths {
         let tx = tx.clone();
@@ -204,16 +207,31 @@ fn workers_download(
         });
     }
 
-    let mut finished: usize = 0;
+    let mut done_count: usize = 0;
+    let mut dl_size: usize = 0;
     loop {
-        if finished >= total {
+        if done_count >= total_count {
             break;
         }
 
-        let r = rx.recv();
-        finished += 1;
-        println!("{:?}", r);
+        done_count += 1;
+        let r = rx.recv().unwrap();
+
+        // TODO: proper error checking
+        dl_size += r.as_ref().unwrap();
+        let perc: f32 = (done_count as f32) / (total_count as f32);
+        let est_size: usize = ((dl_size as f32) / perc) as usize;
+
+        print!(
+            "\rVod `{}` - {: >3.0}% - {: >8} of {: >8} (SPEED) - (TIME REMAINING)",
+            vod.id,
+            perc * 100f32,
+            format_size(dl_size, 1, true),
+            format_size(est_size, 1, true),
+        );
+        stdout().flush().unwrap();
     }
+    println!("");
 
     Ok(())
 }
