@@ -1,7 +1,8 @@
 // Utility functions and types
 
+use std::fmt::format;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // Self-describing exit codes.
 // Each exit point of the program should be using a very clear exit code, along
@@ -17,6 +18,7 @@ pub enum ExitCode {
     // Generic codes
     CannotRegisterSignalHandler,
     CannotCreateDir,
+    CannotChangeDir,
 
     CannotOpenConfig,
     CannotParseConfig,
@@ -26,6 +28,10 @@ pub enum ExitCode {
     RequestErrorFromTwitch, // TODO: rename this one
     GQLErrorFromTwitch,
     CannotParseResponseFromTwitch,
+
+    CannotStartFfmpeg,
+    FfmpegReturnedError,
+    FfmpegInterrupted,
 
     // Command-specific codes
     InitCannotOpenConfig,
@@ -101,4 +107,17 @@ pub fn format_size(size: usize, digits: usize, display_units: bool) -> String {
     } else {
         return format!("{}", t);
     }
+}
+
+pub fn chdir(path: &PathBuf) -> Result<(), ExitMsg> {
+    std::env::set_current_dir(path).map_err(|why| ExitMsg {
+        code: ExitCode::CannotChangeDir,
+        msg: format!(
+            "Cannot change directory to `{}`, reason: `{}`.",
+            path.to_str().unwrap(),
+            why
+        ),
+    })?;
+
+    Ok(())
 }

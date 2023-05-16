@@ -114,11 +114,12 @@ impl Default for ConfigPull {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ExportFormatType {
     Raw,  // JSON export
-    YTT,  // YouTube Timed Text
-    RT,   // RealText
-    SAMI, // Synchronized Accessible Media Interchange
+    Ytt,  // YouTube Timed Text
+    Rt,   // RealText
+    Sami, // Synchronized Accessible Media Interchange
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -160,7 +161,7 @@ pub struct ConfigChat {
 impl Default for ConfigChat {
     fn default() -> Self {
         Self {
-            export_format: ExportFormatType::YTT,
+            export_format: ExportFormatType::Ytt,
             message_display_time: 10,
             randomize_uncolored_names: true,
 
@@ -176,10 +177,10 @@ impl Default for ConfigChat {
 #[serde(default)]
 pub struct ConfigStage {
     #[validate(pattern = r"^[+-]\d{4}$")]
-    timezone: String,
-    description_macros: Vec<String>,
-    delete_on_export: bool,
-    delete_on_upload: bool,
+    pub timezone: String,
+    pub description_macros: Vec<String>,
+    pub delete_on_export: bool,
+    pub delete_on_upload: bool,
 }
 impl Default for ConfigStage {
     fn default() -> Self {
@@ -208,11 +209,11 @@ pub enum FFMPEGLogLevel {
 #[derive(Debug, Serialize, Deserialize, Validate)]
 #[serde(default)]
 pub struct ConfigExport {
-    ffmpeg_loglevel: FFMPEGLogLevel,
-    ffmpeg_stderr: Option<PathBuf>,
-    video_enable: bool,
-    chat_enable: bool,
-    thumbnail_enable: bool,
+    pub ffmpeg_loglevel: FFMPEGLogLevel,
+    pub ffmpeg_stderr: Option<PathBuf>,
+    pub video_enable: bool,
+    pub chat_enable: bool,
+    pub thumbnail_enable: bool,
 }
 impl Default for ConfigExport {
     fn default() -> Self {
@@ -229,15 +230,15 @@ impl Default for ConfigExport {
 #[derive(Debug, Serialize, Deserialize, Validate)]
 #[serde(default)]
 pub struct ConfigUpload {
-    chat_enable: bool,
-    thumbnail_enable: bool,
-    client_url: String,
-    client_path: PathBuf,
-    session_path: PathBuf,
+    pub chat_enable: bool,
+    pub thumbnail_enable: bool,
+    pub client_url: String,
+    pub client_path: PathBuf,
+    pub session_path: PathBuf,
     #[validate(minimum = 262144)]
-    chunk_size: usize,
-    oauth_port: u16,
-    notify_subscribers: bool,
+    pub chunk_size: usize,
+    pub oauth_port: u16,
+    pub notify_subscribers: bool,
 }
 impl Default for ConfigUpload {
     fn default() -> Self {

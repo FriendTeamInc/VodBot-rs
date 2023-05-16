@@ -10,19 +10,16 @@ use m3u8_rs::Playlist;
 use reqwest::blocking::Client;
 
 use crate::config::Config;
-use crate::util::{create_dir, format_size, ExitCode, ExitMsg};
+use crate::util::{chdir, create_dir, format_size, ExitCode, ExitMsg};
 use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod};
 
 pub fn download_vods(
     conf: &Config,
-    vods: Vec<Vod>,
-    tokens: HashMap<String, PlaybackAccessToken>,
+    vods: Vec<(Vod, PlaybackAccessToken, PathBuf)>,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    for v in vods {
-        // TODO: create exitmsg if missing token, or just generic message print?
-        let token = tokens.get(&v.id).unwrap().to_owned();
-        download_vod(conf, v, token, client)?;
+    for (vod, token, output_path) in vods {
+        download_vod(conf, vod, token, output_path, client)?;
     }
 
     Ok(())
@@ -32,6 +29,7 @@ pub fn download_vod(
     conf: &Config,
     vod: Vod,
     token: PlaybackAccessToken,
+    output_path: PathBuf,
     client: &Client,
 ) -> Result<(), ExitMsg> {
     print!("\rVod `{}` ...", vod.id);
@@ -79,7 +77,7 @@ pub fn download_vod(
         .collect();
 
     // then we start the workers on downloading each segment
-    std::fs::write(playlist_path, &bytes).map_err(|why| ExitMsg {
+    std::fs::write(&playlist_path, &bytes).map_err(|why| ExitMsg {
         code: ExitCode::PullCannotWriteSourcePlaylist,
         msg: format!(
             "Failed to use write M3U8 playlist to disk, reason \"{}\".",
@@ -89,8 +87,48 @@ pub fn download_vod(
     workers_download(conf, vod, segment_uri_paths, client)?;
 
     // once the download is done, we spawn an ffmpeg process to stitch it all together
+    let currdir = std::env::current_dir().unwrap(); // TODO: this is dangerous, we should fix this.
+    chdir(temp_dir)?;
+    let loglevel = format!("{:?}", conf.export.ffmpeg_loglevel).to_lowercase();
+    let status = std::process::Command::new("ffmpeg")
+        .args([
+            "-i",
+            playlist_path.to_str().unwrap(),
+            "-max_interleave_delta",
+            "0",
+            "-c",
+            "copy",
+            output_path.to_str().unwrap(),
+            "-y",
+            "-stats",
+            "-loglevel",
+            &loglevel,
+        ])
+        .status()
+        .map_err(|why| ExitMsg {
+            code: ExitCode::CannotStartFfmpeg,
+            msg: format!("Failed to start FFMPEG, reason \"{}\".", why),
+        })?;
+    chdir(&currdir)?;
+    // TODO: sometimes segments are called corrupt by ffmpeg
+    // sometimes theyre useable, depending on the version of ffmpeg
+    // the streams seem otherwise fine, but maybe we should figure out whats going wrong
 
     // check that ffmpeg returned as expected, raise error if necessary
+    let status = status.code();
+    if let Some(s) = status {
+        if s != 0 {
+            return Err(ExitMsg {
+                code: ExitCode::FfmpegReturnedError,
+                msg: format!("FFMPEG returned a non-zero status, `{}`.", s),
+            });
+        }
+    } else if let None = status {
+        return Err(ExitMsg {
+            code: ExitCode::FfmpegInterrupted,
+            msg: format!("FFMPEG was interrupted, no other error."),
+        });
+    }
 
     // clear out the temp folder, and we're done here!
     std::fs::remove_dir_all(temp_dir).map_err(|why| ExitMsg {
@@ -224,8 +262,9 @@ fn workers_download(
         let perc = (done_count as f32) / (total_count as f32);
         let est_size = ((dl_size as f32) / perc) as usize;
         let duration = start_time.elapsed();
-        let dl_speed = ((dl_size as f32) / duration.as_secs_f32()) as usize;
-        let time_left = ((total_count - done_count) as f32) * duration.as_secs_f32() / (done_count as f32);
+        let d32 = duration.as_secs_f32();
+        let dl_speed = ((dl_size as f32) / d32) as usize;
+        let time_left = ((total_count - done_count) as f32) * d32 / (done_count as f32);
 
         print!(
             "\rVod `{}` -  {: >3.0}% -  {: >8} of {: >8} (@ {: >8}/s) -  ({: >4.0}s left)",

@@ -86,12 +86,27 @@ pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
     for k in &users {
         println!("Downloading videos for {} ...", k);
 
+        let voddir = conf.directories.vods.clone();
         let vods = vods.get(k).unwrap().to_owned();
-        let vod_pba_tokens = twitch::get_videos_playback_access_tokens(
+        let tokens = twitch::get_videos_playback_access_tokens(
             &client,
             vods.iter().map(|f| f.id.to_owned()).collect(),
         )?;
-        itd::download_vods(&conf, vods, vod_pba_tokens, &genclient)?;
+
+        let vod_tup: Vec<_> = vods
+            .iter()
+            .map(|f| {
+                (
+                    f.to_owned(),
+                    tokens.get(&f.id).unwrap().to_owned(),
+                    voddir
+                        .clone()
+                        .join(format!("{}_{}.mkv", f.created_at.replace(":", ";"), f.id)),
+                )
+            })
+            .collect();
+
+        itd::download_vods(&conf, vod_tup, &genclient)?;
 
         let clips = clips.get(k).unwrap().to_owned();
         let clip_pba_tokens = twitch::get_clips_playback_access_tokens(
