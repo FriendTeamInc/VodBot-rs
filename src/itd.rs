@@ -1,7 +1,6 @@
 // Independent Twitch Downloader, aka the module where it happens
 // a bunch of functions that make it easy to to download videos from Twitch
 
-use std::collections::HashMap;
 use std::io::{stdout, Write};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -18,7 +17,7 @@ pub fn download_vods(
     vods: Vec<(Vod, PlaybackAccessToken, PathBuf)>,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    let completed: Vec<_> = vods
+    let _completed: Vec<_> = vods
         .into_iter()
         .map(|(v, t, o)| download_vod(conf, v, t, o, client))
         .collect();
@@ -149,7 +148,7 @@ pub fn download_clips(
     // tokens: HashMap<String, PlaybackAccessToken>,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    let completed: Vec<_> = clips
+    let _completed: Vec<_> = clips
         .into_iter()
         .map(|(c, t, o)| download_clip(conf, c, t, o, client))
         .collect();

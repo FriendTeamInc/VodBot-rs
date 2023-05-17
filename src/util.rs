@@ -1,6 +1,5 @@
 // Utility functions and types
 
-use std::fmt::format;
 use std::fs;
 use std::path::{Path, PathBuf};
 

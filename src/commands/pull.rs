@@ -10,7 +10,7 @@ use crate::util::ExitMsg;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
+pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let conf = load_config(&config_path)?;
     let c = &conf.channels;
 
@@ -84,7 +84,7 @@ pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
 
     // now to download each set of videos per user
     for k in &users {
-        println!("Downloading videos for {} ...", k);
+        println!("Pulling videos for `{}` ...", k);
 
         let voddir = conf.directories.vods.clone();
         let vods = vods.get(k).unwrap().to_owned();
@@ -107,6 +107,7 @@ pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
             .collect();
 
         itd::download_vods(&conf, vod_tup, &genclient)?;
+        println!("");
         // TODO: check through vods and write meta files as necessary
 
         let clipdir = conf.directories.clips.clone();
@@ -130,9 +131,10 @@ pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
             .collect();
 
         itd::download_clips(&conf, clip_tup, &genclient)?;
-
         println!("");
     }
+
+    println!("Done!");
 
     Ok(())
 }
