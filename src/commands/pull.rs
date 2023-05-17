@@ -107,13 +107,29 @@ pub fn run(config_path: PathBuf, mode: PullMode) -> Result<(), ExitMsg> {
             .collect();
 
         itd::download_vods(&conf, vod_tup, &genclient)?;
+        // TODO: check through vods and write meta files as necessary
 
+        let clipdir = conf.directories.clips.clone();
         let clips = clips.get(k).unwrap().to_owned();
-        let clip_pba_tokens = twitch::get_clips_playback_access_tokens(
+        let tokens = twitch::get_clips_playback_access_tokens(
             &client,
             clips.iter().map(|f| f.slug.to_owned()).collect(),
         )?;
-        itd::download_clips(&conf, clips, clip_pba_tokens, &genclient)?;
+
+        let clip_tup: Vec<_> = clips
+            .iter()
+            .map(|f| {
+                (
+                    f.to_owned(),
+                    tokens.get(&f.slug).unwrap().to_owned(),
+                    clipdir
+                        .clone()
+                        .join(format!("{}_{}.mkv", f.created_at.replace(":", ";"), f.slug)),
+                )
+            })
+            .collect();
+
+        itd::download_clips(&conf, clip_tup, &genclient)?;
 
         println!("");
     }

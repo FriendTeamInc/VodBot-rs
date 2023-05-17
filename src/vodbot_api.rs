@@ -98,6 +98,7 @@ pub struct Clip {
     pub offset: usize,
 
     pub vod_id: String,
+    pub source_url: String,
     // pub url: String,
 }
 impl Clip {
@@ -143,6 +144,7 @@ impl Clip {
                 .as_ref()
                 .map(|f| f.id.to_owned())
                 .unwrap_or("".to_owned()),
+            source_url: n.video_qualities.first().unwrap().source_url.to_owned(),
         }
     }
 }

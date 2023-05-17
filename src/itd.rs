@@ -18,9 +18,12 @@ pub fn download_vods(
     vods: Vec<(Vod, PlaybackAccessToken, PathBuf)>,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    for (vod, token, output_path) in vods {
-        download_vod(conf, vod, token, output_path, client)?;
-    }
+    let completed: Vec<_> = vods
+        .into_iter()
+        .map(|(v, t, o)| download_vod(conf, v, t, o, client))
+        .collect();
+
+    // TODO: handle some errors, but not all
 
     Ok(())
 }
@@ -141,15 +144,17 @@ pub fn download_vod(
 
 pub fn download_clips(
     conf: &Config,
-    clips: Vec<Clip>,
-    tokens: HashMap<String, PlaybackAccessToken>,
+    clips: Vec<(Clip, PlaybackAccessToken, PathBuf)>,
+    // clips: Vec<Clip>,
+    // tokens: HashMap<String, PlaybackAccessToken>,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    for c in clips {
-        // TODO: create exitmsg if missing token, or just generic message print?
-        let token = tokens.get(&c.slug).unwrap().to_owned();
-        download_clip(conf, c, token, client)?;
-    }
+    let completed: Vec<_> = clips
+        .into_iter()
+        .map(|(c, t, o)| download_clip(conf, c, t, o, client))
+        .collect();
+
+    // TODO: handle some errors, but not all
 
     Ok(())
 }
@@ -158,9 +163,33 @@ pub fn download_clip(
     conf: &Config,
     clip: Clip,
     token: PlaybackAccessToken,
+    output_path: PathBuf,
     client: &Client,
 ) -> Result<(), ExitMsg> {
-    println!("Clip `{}` ...", clip.slug);
+    print!("\rClip `{}` ...", clip.slug);
+    stdout().flush().unwrap();
+
+    // get the cdn url
+    let url = reqwest::Url::parse_with_params(
+        &clip.source_url,
+        &[
+            ("token", token.value),
+            ("sig", token.signature),
+        ]
+    )
+    .unwrap();
+
+    // download using this url
+    let start_time = std::time::Instant::now();
+    let size = download_file(url.to_string(), output_path, conf.pull.connection_timeout, client)?;
+
+    // print stats
+    println!(
+        "\rClip `{}` -- {: >8} in {:.1} seconds",
+        clip.slug,
+        format_size(size, 1, true),
+        start_time.elapsed().as_secs_f32()
+    );
 
     Ok(())
 }
@@ -182,6 +211,7 @@ fn get_playlist_source_uri(
     .unwrap();
     let resp = client
         .get(url)
+        // TODO: Change this duration?
         .timeout(Duration::from_secs(5))
         .send()
         .map_err(|why| ExitMsg {

@@ -5,6 +5,8 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
+// TODO: change all from's to not use references?
+
 pub trait TwitchData {}
 pub trait TwitchNode {}
 
@@ -90,6 +92,12 @@ structstruck::strike! {
         }>,
         pub game: Option<TwitchGame>,
         pub curator: Option<TwitchUser>,
+        pub video_qualities: Vec<pub struct TwitchClipVideoQuality {
+            pub frame_rate: usize,
+            pub quality: String,
+            #[serde(alias = "sourceURL")]
+            pub source_url: String,
+        }>
     }
 }
 impl TwitchData for TwitchClip {}

@@ -146,6 +146,7 @@ pub fn get_channels_clips(
                             video {{ id }}
                             game {{ id name }}
                             curator {{ id displayName login }}
+                            videoQualities {{ frameRate quality sourceURL }}
                 }}  }}  }}  }}",
                 alias, id, after
             }
