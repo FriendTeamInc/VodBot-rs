@@ -111,8 +111,8 @@ pub fn download_vod(
         })?;
     chdir(&currdir)?;
     // TODO: sometimes segments are called corrupt by ffmpeg
-    // sometimes theyre useable, depending on the version of ffmpeg
-    // the streams seem otherwise fine, but maybe we should figure out whats going wrong
+    // most of the time theyre useable, depending on the version of ffmpeg
+    // the streams seem otherwise fine, but maybe we should figure out whats going wrong?
 
     // check that ffmpeg returned as expected, raise error if necessary
     let status = status.code();
@@ -250,10 +250,6 @@ fn workers_download(
     let mut done_count: usize = 0;
     let mut dl_size: usize = 0;
     loop {
-        if done_count >= total_count {
-            break;
-        }
-
         done_count += 1;
         let r = rx.recv().unwrap();
 
@@ -266,18 +262,31 @@ fn workers_download(
         let dl_speed = ((dl_size as f32) / d32) as usize;
         let time_left = ((total_count - done_count) as f32) * d32 / (done_count as f32);
 
-        print!(
-            "\rVod `{}` -  {: >3.0}% -  {: >8} of {: >8} (@ {: >8}/s) -  ({: >4.0}s left)",
-            vod.id,
-            perc * 100f32,
-            format_size(dl_size, 1, true),
-            format_size(est_size, 1, true),
-            format_size(dl_speed, 1, true),
-            time_left
-        );
-        stdout().flush().unwrap();
+
+        if done_count >= total_count {
+            print!("\r{}", " ".to_owned().repeat(80));
+            println!(
+                "\rVod `{}` -- {: >8} in {:.1} seconds",
+                vod.id,
+                // perc * 100f32,
+                format_size(dl_size, 1, true),
+                d32
+            );
+            break;
+        } else {
+            print!("\r{}", " ".to_owned().repeat(80));
+            print!(
+                "\rVod `{}` -- {: >3.0}% -- {: >8} of {: >8} (@ {: >8}/s) -- ({: >4.0}s left)",
+                vod.id,
+                perc * 100f32,
+                format_size(dl_size, 1, true),
+                format_size(est_size, 1, true),
+                format_size(dl_speed, 1, true),
+                time_left
+            );
+            stdout().flush().unwrap();
+        }
     }
-    println!("");
 
     Ok(())
 }

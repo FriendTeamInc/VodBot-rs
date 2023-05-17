@@ -1,9 +1,5 @@
 // VodBot (c) 2020-23 Logan "NotQuiteApex" Hickok-Dickson
 
-extern crate clap;
-extern crate dirs;
-extern crate threadpool;
-
 mod cli;
 mod config;
 mod gql;
