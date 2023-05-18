@@ -12,28 +12,13 @@ use crate::config::Config;
 use crate::util::{chdir, create_dir, format_size, ExitCode, ExitMsg};
 use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod};
 
-pub fn download_vods(
-    conf: &Config,
-    vods: Vec<(Vod, PlaybackAccessToken, PathBuf)>,
-    client: &Client,
-) -> Result<(), ExitMsg> {
-    let _completed: Vec<_> = vods
-        .into_iter()
-        .map(|(v, t, o)| download_vod(conf, v, t, o, client))
-        .collect();
-
-    // TODO: handle some errors, but not all
-
-    Ok(())
-}
-
 pub fn download_vod(
     conf: &Config,
     vod: Vod,
     token: PlaybackAccessToken,
     output_path: PathBuf,
     client: &Client,
-) -> Result<(), ExitMsg> {
+) -> Result<Vod, ExitMsg> {
     print!("\rVod `{}` ...", vod.id);
     stdout().flush().unwrap();
 
@@ -86,7 +71,7 @@ pub fn download_vod(
             why
         ),
     })?;
-    workers_download(conf, vod, segment_uri_paths, client)?;
+    workers_download(conf, &vod, segment_uri_paths, client)?;
 
     // once the download is done, we spawn an ffmpeg process to stitch it all together
     let currdir = std::env::current_dir().unwrap(); // TODO: this is dangerous, we should fix this.
@@ -138,24 +123,7 @@ pub fn download_vod(
         msg: format!("Failed to clean up after Vod download, reason \"{}\".", why),
     })?;
 
-    Ok(())
-}
-
-pub fn download_clips(
-    conf: &Config,
-    clips: Vec<(Clip, PlaybackAccessToken, PathBuf)>,
-    // clips: Vec<Clip>,
-    // tokens: HashMap<String, PlaybackAccessToken>,
-    client: &Client,
-) -> Result<(), ExitMsg> {
-    let _completed: Vec<_> = clips
-        .into_iter()
-        .map(|(c, t, o)| download_clip(conf, c, t, o, client))
-        .collect();
-
-    // TODO: handle some errors, but not all
-
-    Ok(())
+    Ok(vod)
 }
 
 pub fn download_clip(
@@ -171,16 +139,18 @@ pub fn download_clip(
     // get the cdn url
     let url = reqwest::Url::parse_with_params(
         &clip.source_url,
-        &[
-            ("token", token.value),
-            ("sig", token.signature),
-        ]
+        &[("token", token.value), ("sig", token.signature)],
     )
     .unwrap();
 
     // download using this url
     let start_time = std::time::Instant::now();
-    let size = download_file(url.to_string(), output_path, conf.pull.connection_timeout, client)?;
+    let size = download_file(
+        url.to_string(),
+        output_path,
+        conf.pull.connection_timeout,
+        client,
+    )?;
 
     // print stats
     println!(
@@ -251,7 +221,7 @@ fn get_playlist_source_uri(
 
 fn workers_download(
     conf: &Config,
-    vod: Vod,
+    vod: &Vod,
     paths: Vec<(PathBuf, String)>,
     client: &Client,
 ) -> Result<(), ExitMsg> {
@@ -290,7 +260,6 @@ fn workers_download(
         let d32 = duration.as_secs_f32();
         let dl_speed = ((dl_size as f32) / d32) as usize;
         let time_left = ((total_count - done_count) as f32) * d32 / (done_count as f32);
-
 
         if done_count >= total_count {
             print!("\r{}", " ".to_owned().repeat(80));

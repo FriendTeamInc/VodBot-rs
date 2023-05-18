@@ -50,6 +50,7 @@ pub enum ExitCode {
     PullCannotGetChunk,
     PullCannotParseChunk,
     PullCannotWriteChunk,
+    PullCannotOpenMeta,
 }
 
 #[derive(Debug, Clone)]

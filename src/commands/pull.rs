@@ -5,7 +5,7 @@ use crate::config::{load_config, ConfigChannel};
 use crate::gql::GQLClient;
 use crate::itd;
 use crate::twitch;
-use crate::util::ExitMsg;
+use crate::util::{ExitMsg, ExitCode};
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -93,22 +93,21 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
             vods.iter().map(|f| f.id.to_owned()).collect(),
         )?;
 
-        let vod_tup: Vec<_> = vods
-            .iter()
-            .map(|f| {
-                (
-                    f.to_owned(),
-                    tokens.get(&f.id).unwrap().to_owned(),
-                    voddir
-                        .clone()
-                        .join(format!("{}_{}.mkv", f.created_at.replace(":", ";"), f.id)),
-                )
-            })
-            .collect();
+        for v in vods {
+            let filename = format!("{}_{}.mkv", v.created_at.replace(":", ";"), v.id);
+            let mut output_path = voddir.clone().join(filename);
+            let token = tokens.get(&v.id).unwrap().to_owned();
+            let v = itd::download_vod(&conf, v, token, output_path.clone(), &genclient)?;
 
-        itd::download_vods(&conf, vod_tup, &genclient)?;
+            output_path.set_extension("meta.json");
+            let file = std::fs::File::create(output_path)
+                .map_err(|why| ExitMsg {
+                    code: ExitCode::PullCannotOpenMeta,
+                    msg: format!("Failed to open Vod meta to write, reason `{}`.", why)
+                })?;
+            serde_json::to_writer(file, &v).unwrap();
+        }
         println!("");
-        // TODO: check through vods and write meta files as necessary
 
         let clipdir = conf.directories.clips.clone();
         let clips = clips.get(k).unwrap().to_owned();
@@ -117,20 +116,20 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
             clips.iter().map(|f| f.slug.to_owned()).collect(),
         )?;
 
-        let clip_tup: Vec<_> = clips
-            .iter()
-            .map(|f| {
-                (
-                    f.to_owned(),
-                    tokens.get(&f.slug).unwrap().to_owned(),
-                    clipdir
-                        .clone()
-                        .join(format!("{}_{}.mkv", f.created_at.replace(":", ";"), f.slug)),
-                )
-            })
-            .collect();
+        for c in clips {
+            let filename = format!("{}_{}.mp4", c.created_at.replace(":", ";"), c.slug);
+            let mut output_path = clipdir.clone().join(filename);
+            let token = tokens.get(&c.slug).unwrap().to_owned();
+            let c = itd::download_clip(&conf, c, token, output_path.clone(), &genclient)?;
 
-        itd::download_clips(&conf, clip_tup, &genclient)?;
+            output_path.set_extension("meta.json");
+            let file = std::fs::File::create(output_path)
+                .map_err(|why| ExitMsg {
+                    code: ExitCode::PullCannotOpenMeta,
+                    msg: format!("Failed to open Clip meta to write, reason `{}`.", why)
+                })?;
+            serde_json::to_writer(file, &c).unwrap();
+        }
         println!("");
     }
 
