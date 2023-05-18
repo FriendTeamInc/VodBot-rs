@@ -1,12 +1,14 @@
 // Pull command, for grabbing videos off of Twitch
 
 use crate::cli::PullMode;
-use crate::config::{load_config, ConfigChannel};
+use crate::config::{load_config, Config, ConfigChannel};
 use crate::gql::GQLClient;
 use crate::itd;
 use crate::twitch;
-use crate::util::{ExitMsg, ExitCode};
+use crate::util::{ExitCode, ExitMsg};
+use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod, VodBotData};
 
+use reqwest::blocking::Client;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -42,9 +44,9 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
 
     let client = GQLClient::new(conf.pull.gql_client_id.clone());
 
-    let vods = twitch::get_channels_videos(&client, vods)?;
+    let mut vods = twitch::get_channels_videos(&client, vods)?;
     // let chat = twitch::get_channels_videos(&client, chat); // gotta filter and map with vods
-    let clips = twitch::get_channels_clips(&client, clips)?;
+    let mut clips = twitch::get_channels_clips(&client, clips)?;
 
     // TODO: check disk and filter out existing videos
     // make a hashmap of usernames and video ids for vods, clips, etc
@@ -85,55 +87,65 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     // now to download each set of videos per user
     for k in &users {
         println!("Pulling videos for `{}` ...", k);
+        let dir = &conf.directories;
 
-        let voddir = conf.directories.vods.clone();
-        let vods = vods.get(k).unwrap().to_owned();
-        let tokens = twitch::get_videos_playback_access_tokens(
+        download_stuff::<Vod>(
+            dir.vods.clone(),
+            k,
+            &mut vods,
+            twitch::get_videos_playback_access_tokens,
+            itd::download_vod,
+            &conf,
             &client,
-            vods.iter().map(|f| f.id.to_owned()).collect(),
+            &genclient,
         )?;
 
-        for v in vods {
-            let filename = format!("{}_{}.mkv", v.created_at.replace(":", ";"), v.id);
-            let mut output_path = voddir.clone().join(filename);
-            let token = tokens.get(&v.id).unwrap().to_owned();
-            let v = itd::download_vod(&conf, v, token, output_path.clone(), &genclient)?;
-
-            output_path.set_extension("meta.json");
-            let file = std::fs::File::create(output_path)
-                .map_err(|why| ExitMsg {
-                    code: ExitCode::PullCannotOpenMeta,
-                    msg: format!("Failed to open Vod meta to write, reason `{}`.", why)
-                })?;
-            serde_json::to_writer(file, &v).unwrap();
-        }
-        println!("");
-
-        let clipdir = conf.directories.clips.clone();
-        let clips = clips.get(k).unwrap().to_owned();
-        let tokens = twitch::get_clips_playback_access_tokens(
+        download_stuff::<Clip>(
+            dir.clips.clone(),
+            k,
+            &mut clips,
+            twitch::get_clips_playback_access_tokens,
+            itd::download_clip,
+            &conf,
             &client,
-            clips.iter().map(|f| f.slug.to_owned()).collect(),
+            &genclient,
         )?;
-
-        for c in clips {
-            let filename = format!("{}_{}.mp4", c.created_at.replace(":", ";"), c.slug);
-            let mut output_path = clipdir.clone().join(filename);
-            let token = tokens.get(&c.slug).unwrap().to_owned();
-            let c = itd::download_clip(&conf, c, token, output_path.clone(), &genclient)?;
-
-            output_path.set_extension("meta.json");
-            let file = std::fs::File::create(output_path)
-                .map_err(|why| ExitMsg {
-                    code: ExitCode::PullCannotOpenMeta,
-                    msg: format!("Failed to open Clip meta to write, reason `{}`.", why)
-                })?;
-            serde_json::to_writer(file, &c).unwrap();
-        }
-        println!("");
     }
 
     println!("Done!");
+
+    Ok(())
+}
+
+fn download_stuff<T: VodBotData + serde::Serialize>(
+    output_dir: PathBuf,
+    user_id: &String,
+    content: &mut HashMap<String, Vec<T>>,
+    token_method: impl FnOnce(
+        &GQLClient,
+        Vec<String>,
+    ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg>,
+    download_method: impl Fn(&Config, T, PlaybackAccessToken, PathBuf, &Client) -> Result<T, ExitMsg>,
+    conf: &Config,
+    gqlclient: &GQLClient,
+    genclient: &Client,
+) -> Result<(), ExitMsg> {
+    let content = content.remove(user_id).unwrap();
+    let tokens = token_method(gqlclient, content.iter().map(|f| f.identifier()).collect())?;
+
+    for c in content {
+        let mut output_path = output_dir.clone().join(c.filename());
+        let token = tokens.get(&c.identifier()).unwrap().to_owned();
+        let c = download_method(conf, c, token, output_path.clone(), genclient)?;
+
+        output_path.set_extension("meta.json");
+        let file = std::fs::File::create(output_path).map_err(|why| ExitMsg {
+            code: ExitCode::PullCannotOpenMeta,
+            msg: format!("Failed to open meta to write, reason `{}`.", why),
+        })?;
+        serde_json::to_writer(file, &c).unwrap();
+    }
+    println!("");
 
     Ok(())
 }

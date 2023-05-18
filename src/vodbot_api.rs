@@ -10,6 +10,13 @@ use crate::twitch_api::{
     TwitchVideoMoment,
 };
 
+// Tag trait
+pub trait VodBotData {
+    fn identifier(&self) -> String;
+    fn created_at(&self) -> String;
+    fn filename(&self) -> String;
+}
+
 // Pull related data
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -71,6 +78,17 @@ impl Vod {
             duration: v.length_seconds,
             has_chat: false,
         }
+    }
+}
+impl VodBotData for Vod {
+    fn identifier(&self) -> String {
+        self.id.clone()
+    }
+    fn created_at(&self) -> String {
+        self.created_at.clone()
+    }
+    fn filename(&self) -> String {
+        format!("{}_{}.mkv", self.created_at().replace(":", ";"), self.identifier())
     }
 }
 
@@ -146,6 +164,17 @@ impl Clip {
                 .unwrap_or("".to_owned()),
             source_url: n.video_qualities.first().unwrap().source_url.to_owned(),
         }
+    }
+}
+impl VodBotData for Clip {
+    fn identifier(&self) -> String {
+        self.slug.clone()
+    }
+    fn created_at(&self) -> String {
+        self.created_at.clone()
+    }
+    fn filename(&self) -> String {
+        format!("{}_{}.mp4", self.created_at().replace(":", ";"), self.identifier())
     }
 }
 

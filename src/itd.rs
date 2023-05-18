@@ -132,7 +132,7 @@ pub fn download_clip(
     token: PlaybackAccessToken,
     output_path: PathBuf,
     client: &Client,
-) -> Result<(), ExitMsg> {
+) -> Result<Clip, ExitMsg> {
     print!("\rClip `{}` ...", clip.slug);
     stdout().flush().unwrap();
 
@@ -160,7 +160,7 @@ pub fn download_clip(
         start_time.elapsed().as_secs_f32()
     );
 
-    Ok(())
+    Ok(clip)
 }
 
 fn get_playlist_source_uri(
