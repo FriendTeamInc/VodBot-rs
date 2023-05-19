@@ -88,7 +88,11 @@ impl VodBotData for Vod {
         self.created_at.clone()
     }
     fn filename(&self) -> String {
-        format!("{}_{}.mkv", self.created_at().replace(":", ";"), self.identifier())
+        format!(
+            "{}_{}.mkv",
+            self.created_at().replace(":", ";"),
+            self.identifier()
+        )
     }
 }
 
@@ -174,7 +178,11 @@ impl VodBotData for Clip {
         self.created_at.clone()
     }
     fn filename(&self) -> String {
-        format!("{}_{}.mp4", self.created_at().replace(":", ";"), self.identifier())
+        format!(
+            "{}_{}.mp4",
+            self.created_at().replace(":", ";"),
+            self.identifier()
+        )
     }
 }
 

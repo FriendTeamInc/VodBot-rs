@@ -61,8 +61,8 @@ pub fn run(overwrite_confirm: bool) -> Result<(), util::ExitMsg> {
             ),
         })?;
 
-    println!("Finished.");
-    // You may still need to add channels yourself.
+    // println!("Done!");
+    // println!("You may still need to add channels yourself.")
 
     Ok(())
 }

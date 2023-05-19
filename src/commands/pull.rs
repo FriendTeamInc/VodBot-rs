@@ -20,33 +20,20 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let users: Vec<_> = c.iter().map(f).collect();
     println!("Checking users: {} ...", users.join(", "));
 
-    let save_vods = conf.pull.save_vods;
-    // let save_chat = conf.pull.save_chat;
-    let save_clips = conf.pull.save_clips;
-    // let save_highlights = conf.pull.save_highlights;
-    // let save_premieres = conf.pull.save_premieres;
-    // let save_uploads = conf.pull.save_uploads;
-
-    let vods: Vec<_> = c
-        .iter()
-        .filter(|f| f.save_vods && save_vods)
-        .map(f)
-        .collect();
-    // let chat: Vec<_> = c.iter().filter(|f| f.save_chat && save_chat).map(f).collect();
-    let clips: Vec<_> = c
-        .iter()
-        .filter(|f| f.save_clips && save_clips)
-        .map(f)
-        .collect();
-    // let highlights: Vec<_> = c.iter().filter(|f| f.save_highlights && save_highlights).map(f).collect();
-    // let premieres: Vec<_> = c.iter().filter(|f| f.save_premieres && save_premieres).map(f).collect();
-    // let uploads: Vec<_> = c.iter().filter(|f| f.save_uploads && save_uploads).map(f).collect();
+    let s: (Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>) = (
+        c.iter().filter(|f| f.save_vods && conf.pull.save_vods).map(f).collect(),
+        c.iter().filter(|f| f.save_chat && conf.pull.save_chat).map(f).collect(),
+        c.iter().filter(|f| f.save_clips && conf.pull.save_clips).map(f).collect(),
+        c.iter().filter(|f| f.save_highlights && conf.pull.save_highlights).map(f).collect(),
+        c.iter().filter(|f| f.save_premieres && conf.pull.save_premieres).map(f).collect(),
+        c.iter().filter(|f| f.save_uploads && conf.pull.save_uploads).map(f).collect(),
+    );
 
     let client = GQLClient::new(conf.pull.gql_client_id.clone());
 
-    let mut vods = twitch::get_channels_videos(&client, vods)?;
-    // let chat = twitch::get_channels_videos(&client, chat); // gotta filter and map with vods
-    let mut clips = twitch::get_channels_clips(&client, clips)?;
+    let mut vods = twitch::get_channels_videos(&client, s.0)?;
+    // let chat = twitch::get_channels_videos(&client, s.1);
+    let mut clips = twitch::get_channels_clips(&client, s.2)?;
 
     // TODO: check disk and filter out existing videos
     // make a hashmap of usernames and video ids for vods, clips, etc
@@ -112,7 +99,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
         )?;
     }
 
-    println!("Done!");
+    // println!("Done!");
 
     Ok(())
 }

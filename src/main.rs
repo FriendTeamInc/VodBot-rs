@@ -70,7 +70,7 @@ fn main() {
         |err| {
             let code: i32 = err.code.clone() as i32;
             eprintln!(
-                "{}\nExit code: {:?} ({})",
+                "\n{}\nExit code: {:?} ({})",
                 err.msg.as_str(),
                 &err.code,
                 code
