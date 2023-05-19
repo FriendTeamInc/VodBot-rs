@@ -103,26 +103,40 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
         println!("Pulling videos for `{}` ...", k);
         let dir = &conf.directories;
 
+        // Vods
         download_stuff::<Vod>(
-            dir.vods.clone(),
-            k,
-            &mut vods,
+            dir.vods.clone(), k, &mut vods,
             twitch::get_videos_playback_access_tokens,
-            itd::download_vod,
-            &conf,
-            &client,
-            &genclient,
+            itd::download_vod, &conf, &client, &genclient,
+            "Vod".to_owned(),
         )?;
-
+        // Highlights
+        download_stuff::<Vod>(
+            dir.highlights.clone(), k, &mut highlights,
+            twitch::get_videos_playback_access_tokens,
+            itd::download_vod, &conf, &client, &genclient,
+            "Highlight".to_owned(),
+        )?;
+        // Premiere
+        download_stuff::<Vod>(
+            dir.premieres.clone(), k, &mut premieres,
+            twitch::get_videos_playback_access_tokens,
+            itd::download_vod, &conf, &client, &genclient,
+            "Premiere".to_owned(),
+        )?;
+        // Upload
+        download_stuff::<Vod>(
+            dir.uploads.clone(), k, &mut uploads,
+            twitch::get_videos_playback_access_tokens,
+            itd::download_vod, &conf, &client, &genclient,
+            "Upload".to_owned(),
+        )?;
+        // Clip
         download_stuff::<Clip>(
-            dir.clips.clone(),
-            k,
-            &mut clips,
+            dir.clips.clone(), k, &mut clips,
             twitch::get_clips_playback_access_tokens,
-            itd::download_clip,
-            &conf,
-            &client,
-            &genclient,
+            itd::download_clip, &conf, &client, &genclient,
+            "Clip".to_owned(),
         )?;
     }
 
@@ -139,18 +153,21 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
         &GQLClient,
         Vec<String>,
     ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg>,
-    download_method: impl Fn(&Config, T, PlaybackAccessToken, PathBuf, &Client) -> Result<T, ExitMsg>,
+    download_method: impl Fn(&Config, T, PlaybackAccessToken, PathBuf, &Client, String) -> Result<T, ExitMsg>,
     conf: &Config,
     gqlclient: &GQLClient,
     genclient: &Client,
+    noun: String,
 ) -> Result<(), ExitMsg> {
     let content = content.remove(user_id).unwrap();
     let tokens = token_method(gqlclient, content.iter().map(|f| f.identifier()).collect())?;
 
+    let mut has_content = false;
     for c in content {
+        has_content = true;
         let mut output_path = output_dir.clone().join(c.filename());
         let token = tokens.get(&c.identifier()).unwrap().to_owned();
-        let c = download_method(conf, c, token, output_path.clone(), genclient)?;
+        let c = download_method(conf, c, token, output_path.clone(), genclient, noun.clone())?;
 
         output_path.set_extension("meta.json");
         let file = std::fs::File::create(output_path).map_err(|why| ExitMsg {
@@ -159,7 +176,9 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
         })?;
         serde_json::to_writer(file, &c).unwrap();
     }
-    println!("");
+    if has_content {
+        println!("");
+    }
 
     Ok(())
 }

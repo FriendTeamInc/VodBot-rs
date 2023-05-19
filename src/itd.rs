@@ -18,8 +18,9 @@ pub fn download_vod(
     token: PlaybackAccessToken,
     output_path: PathBuf,
     client: &Client,
+    noun: String
 ) -> Result<Vod, ExitMsg> {
-    print!("\rVod `{}` ...", vod.id);
+    print!("\r{} `{}` ...", noun, vod.id);
     stdout().flush().unwrap();
 
     // get m3u8 quality playlist, first uri is the source quality
@@ -71,7 +72,7 @@ pub fn download_vod(
             why
         ),
     })?;
-    workers_download(conf, &vod, segment_uri_paths, client)?;
+    workers_download(conf, &vod, segment_uri_paths, client, noun)?;
 
     // once the download is done, we spawn an ffmpeg process to stitch it all together
     let currdir = std::env::current_dir().unwrap(); // TODO: this is dangerous, we should fix this.
@@ -132,6 +133,7 @@ pub fn download_clip(
     token: PlaybackAccessToken,
     output_path: PathBuf,
     client: &Client,
+    _noun: String,
 ) -> Result<Clip, ExitMsg> {
     print!("\rClip `{}` ...", clip.slug);
     stdout().flush().unwrap();
@@ -224,6 +226,7 @@ fn workers_download(
     vod: &Vod,
     paths: Vec<(PathBuf, String)>,
     client: &Client,
+    noun: String,
 ) -> Result<(), ExitMsg> {
     let executor = threadpool::ThreadPool::new(conf.pull.download_workers);
 
@@ -264,9 +267,9 @@ fn workers_download(
         if done_count >= total_count {
             print!("\r{}", " ".to_owned().repeat(80));
             println!(
-                "\rVod `{}` -- {: >8} in {:.1} seconds",
+                "\r{} `{}` -- {: >8} in {:.1} seconds",
+                noun,
                 vod.id,
-                // perc * 100f32,
                 format_size(dl_size, 1, true),
                 d32
             );
@@ -274,7 +277,8 @@ fn workers_download(
         } else {
             print!("\r{}", " ".to_owned().repeat(80));
             print!(
-                "\rVod `{}` -- {: >3.0}% -- {: >8} of {: >8} (@ {: >8}/s) -- ({: >4.0}s left)",
+                "\r{} `{}` -- {: >3.0}% -- {: >8} of {: >8} (@ {: >8}/s) -- ({: >4.0}s left)",
+                noun,
                 vod.id,
                 perc * 100f32,
                 format_size(dl_size, 1, true),
