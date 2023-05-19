@@ -49,19 +49,175 @@ pub fn load_config(path: &PathBuf) -> Result<Config, util::ExitMsg> {
     Ok(json)
 }
 
-#[derive(Debug, Serialize, Deserialize, Validate)]
-#[serde(default)]
-pub struct ConfigChannel {
-    #[validate(min_length = 3)]
-    #[validate(max_length = 24)]
-    pub username: String,
+// #[derive(Debug, Serialize, Deserialize, Validate)]
+// #[serde(default)]
+// pub struct ConfigThumbnailIcon {  }
+// #[derive(Debug, Serialize, Deserialize, Validate)]
+// #[serde(default)]
+// pub struct ConfigThumbnailPosition {  }
+// #[derive(Debug, Serialize, Deserialize, Validate)]
+// #[serde(default)]
+// pub struct ConfigThumbnail {  }
 
-    pub save_vods: bool,
-    pub save_highlights: bool,
-    pub save_uploads: bool,
-    pub save_premieres: bool,
-    pub save_clips: bool,
-    pub save_chat: bool,
+// #[derive(Debug, Serialize, Deserialize, Validate)]
+// #[serde(default)]
+// pub struct ConfigWebhookBase {  }
+// #[derive(Debug, Serialize, Deserialize, Validate)]
+// #[serde(default)]
+// pub struct ConfigWebhooks {  }
+
+structstruck::strike! {
+    #[strikethrough[derive(Debug, Serialize, Deserialize)]]
+    #[strikethrough[serde(rename_all = "camelCase")]]
+    pub struct Config {
+        #![derive(Validate)]
+        #![serde(default)]
+        #[validate]
+        pub channels: Vec<pub struct ConfigChannel {
+            #![derive(Validate)]
+            #![serde(default)]
+            #[validate(min_length = 3)]
+            #[validate(max_length = 24)]
+            pub username: String,
+
+            pub save_vods: bool,
+            pub save_highlights: bool,
+            pub save_uploads: bool,
+            pub save_premieres: bool,
+            pub save_clips: bool,
+            pub save_chat: bool,
+        }>,
+        #[validate]
+        pub pull: pub struct ConfigPull {
+            #![derive(Validate)]
+            #![serde(default)]
+            pub save_vods: bool,
+            pub save_highlights: bool,
+            pub save_uploads: bool,
+            pub save_premieres: bool,
+            pub save_clips: bool,
+            pub save_chat: bool,
+
+            pub gql_client_id: String,
+
+            pub download_workers: usize,
+            // pub download_chunk_size: usize,
+            pub connection_retries: usize,
+            pub connection_timeout: usize,
+        },
+        #[validate]
+        pub chat: pub struct ConfigChat {
+            #![derive(Validate)]
+            #![serde(default)]
+            pub export_format: pub enum ChatExportFormatType {
+                Raw,  // JSON export
+                Ytt,  // YouTube Timed Text
+                Rt,   // RealText
+                Sami, // Synchronized Accessible Media Interchange
+            },
+            pub message_display_time: usize,
+            pub randomize_uncolored_names: bool,
+
+            pub ytt_align: pub enum YTTAlignment {
+                Left,
+                Right,
+                Center,
+            },
+            pub ytt_anchor: pub enum YTTAnchor {
+                TopLeft,
+                TopCenter,
+                TopRight,
+                CenterLeft,
+                CenterCenter,
+                CenterRight,
+                BottomLeft,
+                BottomCenter,
+                BottomRight,
+            },
+            #[validate(minimum = 0)]
+            #[validate(maximum = 100)]
+            pub ytt_position_x: u8,
+            #[validate(minimum = 0)]
+            #[validate(maximum = 100)]
+            pub ytt_position_y: u8,
+        },
+        #[validate]
+        pub stage: pub struct ConfigStage {
+            #![derive(Validate)]
+            #![serde(default)]
+            #[validate(pattern = r"^[+-]\d{4}$")]
+            pub timezone: String,
+            pub description_macros: Vec<String>,
+            pub delete_on_export: bool,
+            pub delete_on_upload: bool,
+        },
+        #[validate]
+        pub export: pub struct ConfigExport {
+            #![derive(Validate)]
+            #![serde(default)]
+            pub ffmpeg_loglevel: pub enum FFMPEGLogLevel {
+                Quiet,
+                Panic,
+                Fatal,
+                Error,
+                Warning,
+                Info,
+                Verbose,
+                Debug,
+                Trace,
+            },
+            pub ffmpeg_stderr: Option<PathBuf>,
+            pub video_enable: bool,
+            pub chat_enable: bool,
+            pub thumbnail_enable: bool,
+        },
+        #[validate]
+        pub upload: pub struct ConfigUpload {
+            #![derive(Validate)]
+            #![serde(default)]
+            pub chat_enable: bool,
+            pub thumbnail_enable: bool,
+            pub client_url: String,
+            pub client_path: PathBuf,
+            pub session_path: PathBuf,
+            #[validate(minimum = 262144)]
+            pub chunk_size: usize,
+            pub oauth_port: u16,
+            pub notify_subscribers: bool,
+        },
+        // #[validate]
+        // pub webhooks: ConfigWebhooks,
+        // #[validate]
+        // pub thumbnail: ConfigThumbnail,
+        #[validate]
+        pub directories: pub struct ConfigDirectories {
+            #![derive(Validate)]
+            #![serde(default)]
+            pub vods: PathBuf,
+            pub highlights: PathBuf,
+            pub uploads: PathBuf,
+            pub premieres: PathBuf,
+            pub clips: PathBuf,
+
+            pub temp: PathBuf,
+            pub stage: PathBuf,
+            pub thumbnail: PathBuf,
+        },
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            channels: Vec::new(),
+            pull: ConfigPull::default(),
+            chat: ConfigChat::default(),
+            stage: ConfigStage::default(),
+            export: ConfigExport::default(),
+            upload: ConfigUpload::default(),
+            directories: ConfigDirectories::default(),
+        }
+    }
 }
 impl Default for ConfigChannel {
     fn default() -> Self {
@@ -75,24 +231,6 @@ impl Default for ConfigChannel {
             save_chat: true,
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Validate)]
-#[serde(default)]
-pub struct ConfigPull {
-    pub save_vods: bool,
-    pub save_highlights: bool,
-    pub save_uploads: bool,
-    pub save_premieres: bool,
-    pub save_clips: bool,
-    pub save_chat: bool,
-
-    pub gql_client_id: String,
-
-    pub download_workers: usize,
-    // pub download_chunk_size: usize,
-    pub connection_retries: usize,
-    pub connection_timeout: usize,
 }
 impl Default for ConfigPull {
     fn default() -> Self {
@@ -112,56 +250,10 @@ impl Default for ConfigPull {
         }
     }
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ExportFormatType {
-    Raw,  // JSON export
-    Ytt,  // YouTube Timed Text
-    Rt,   // RealText
-    Sami, // Synchronized Accessible Media Interchange
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum YTTAlignment {
-    Left,
-    Right,
-    Center,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum YTTAnchor {
-    TopLeft,
-    TopCenter,
-    TopRight,
-    CenterLeft,
-    CenterCenter,
-    CenterRight,
-    BottomLeft,
-    BottomCenter,
-    BottomRight,
-}
-
-#[derive(Debug, Serialize, Deserialize, Validate)]
-#[serde(default)]
-pub struct ConfigChat {
-    pub export_format: ExportFormatType, // TODO: change this to enum
-    pub message_display_time: usize,
-    pub randomize_uncolored_names: bool,
-
-    pub ytt_align: YTTAlignment, // TODO: change this to enum
-    pub ytt_anchor: YTTAnchor,
-    #[validate(minimum = 0)]
-    #[validate(maximum = 100)]
-    pub ytt_position_x: u8,
-    #[validate(minimum = 0)]
-    #[validate(maximum = 100)]
-    pub ytt_position_y: u8,
-}
 impl Default for ConfigChat {
     fn default() -> Self {
         Self {
-            export_format: ExportFormatType::Ytt,
+            export_format: ChatExportFormatType::Ytt,
             message_display_time: 10,
             randomize_uncolored_names: true,
 
@@ -171,16 +263,6 @@ impl Default for ConfigChat {
             ytt_position_y: 100,
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Validate)]
-#[serde(default)]
-pub struct ConfigStage {
-    #[validate(pattern = r"^[+-]\d{4}$")]
-    pub timezone: String,
-    pub description_macros: Vec<String>,
-    pub delete_on_export: bool,
-    pub delete_on_upload: bool,
 }
 impl Default for ConfigStage {
     fn default() -> Self {
@@ -192,29 +274,6 @@ impl Default for ConfigStage {
         }
     }
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum FFMPEGLogLevel {
-    Quiet,
-    Panic,
-    Fatal,
-    Error,
-    Warning,
-    Info,
-    Verbose,
-    Debug,
-    Trace,
-}
-
-#[derive(Debug, Serialize, Deserialize, Validate)]
-#[serde(default)]
-pub struct ConfigExport {
-    pub ffmpeg_loglevel: FFMPEGLogLevel,
-    pub ffmpeg_stderr: Option<PathBuf>,
-    pub video_enable: bool,
-    pub chat_enable: bool,
-    pub thumbnail_enable: bool,
-}
 impl Default for ConfigExport {
     fn default() -> Self {
         Self {
@@ -225,20 +284,6 @@ impl Default for ConfigExport {
             thumbnail_enable: true,
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Validate)]
-#[serde(default)]
-pub struct ConfigUpload {
-    pub chat_enable: bool,
-    pub thumbnail_enable: bool,
-    pub client_url: String,
-    pub client_path: PathBuf,
-    pub session_path: PathBuf,
-    #[validate(minimum = 262144)]
-    pub chunk_size: usize,
-    pub oauth_port: u16,
-    pub notify_subscribers: bool,
 }
 impl Default for ConfigUpload {
     fn default() -> Self {
@@ -256,37 +301,6 @@ impl Default for ConfigUpload {
         }
     }
 }
-
-// #[derive(Debug, Serialize, Deserialize, Validate)]
-// #[serde(default)]
-// pub struct ConfigThumbnailIcon {  }
-// #[derive(Debug, Serialize, Deserialize, Validate)]
-// #[serde(default)]
-// pub struct ConfigThumbnailPosition {  }
-// #[derive(Debug, Serialize, Deserialize, Validate)]
-// #[serde(default)]
-// pub struct ConfigThumbnail {  }
-
-// #[derive(Debug, Serialize, Deserialize, Validate)]
-// #[serde(default)]
-// pub struct ConfigWebhookBase {  }
-// #[derive(Debug, Serialize, Deserialize, Validate)]
-// #[serde(default)]
-// pub struct ConfigWebhooks {  }
-
-#[derive(Debug, Serialize, Deserialize, Validate)]
-#[serde(default)]
-pub struct ConfigDirectories {
-    pub vods: PathBuf,
-    pub highlights: PathBuf,
-    pub uploads: PathBuf,
-    pub premieres: PathBuf,
-    pub clips: PathBuf,
-
-    pub temp: PathBuf,
-    pub stage: PathBuf,
-    pub thumbnail: PathBuf,
-}
 impl Default for ConfigDirectories {
     fn default() -> Self {
         Self {
@@ -300,26 +314,4 @@ impl Default for ConfigDirectories {
             thumbnail: from_vodbot_dir(&["thumbnail"]),
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Validate, Default)]
-pub struct Config {
-    #[validate]
-    pub channels: Vec<ConfigChannel>,
-    #[validate]
-    pub pull: ConfigPull,
-    #[validate]
-    pub chat: ConfigChat,
-    #[validate]
-    pub stage: ConfigStage,
-    #[validate]
-    pub export: ConfigExport,
-    #[validate]
-    pub upload: ConfigUpload,
-    // #[validate]
-    // pub webhooks: ConfigWebhooks,
-    // #[validate]
-    // pub thumbnail: ConfigThumbnail,
-    #[validate]
-    pub directories: ConfigDirectories,
 }

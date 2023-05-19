@@ -20,6 +20,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let users: Vec<_> = c.iter().map(f).collect();
     println!("Checking users: {} ...", users.join(", "));
 
+    #[rustfmt::skip]
     let s: (Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>) = (
         c.iter().filter(|f| f.save_vods && conf.pull.save_vods).map(f).collect(),
         c.iter().filter(|f| f.save_chat && conf.pull.save_chat).map(f).collect(),
