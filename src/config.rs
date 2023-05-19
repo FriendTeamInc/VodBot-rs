@@ -28,6 +28,7 @@ pub fn load_config(path: &PathBuf) -> Result<Config, util::ExitMsg> {
             why
         ),
     })?;
+
     let json: Config = serde_json::from_reader(file).map_err(|why| util::ExitMsg {
         code: util::ExitCode::CannotParseConfig,
         msg: format!(
@@ -192,6 +193,7 @@ structstruck::strike! {
         #[validate]
         pub directories: pub struct ConfigDirectories {
             pub vods: PathBuf,
+            pub chat: PathBuf,
             pub highlights: PathBuf,
             pub uploads: PathBuf,
             pub premieres: PathBuf,
@@ -302,6 +304,7 @@ impl Default for ConfigDirectories {
     fn default() -> Self {
         Self {
             vods: from_vodbot_dir(&["videos", "vods"]),
+            chat: from_vodbot_dir(&["videos", "chat"]),
             highlights: from_vodbot_dir(&["videos", "highlights"]),
             uploads: from_vodbot_dir(&["videos", "uploads"]),
             premieres: from_vodbot_dir(&["videos", "premieres"]),

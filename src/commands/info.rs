@@ -17,8 +17,8 @@ enum ContentType {
 
 #[rustfmt::skip]
 fn test(client: &GQLClient) -> Result<(), ExitMsg> {
-    println!("channel_videos:    \n{:?}", twitch::get_channel_videos(&client, "vodbot_fti".to_owned())?);
-    println!("channels_videos:   \n{:?}", twitch::get_channels_videos(&client, vec!["vodbot_fti".to_owned()])?);
+    // println!("channel_videos:    \n{:?}", twitch::get_channel_videos(&client, "vodbot_fti".to_owned())?);
+    // println!("channels_videos:   \n{:?}", twitch::get_channels_videos(&client, vec!["vodbot_fti".to_owned()])?);
     println!("video_chapters:    \n{:?}", twitch::get_video_chapters(&client, "1818343419".to_owned())?);
     println!("videos_chapters:   \n{:?}", twitch::get_videos_chapters(&client, vec!["1818343419".to_owned()])?);
     println!("video_comments:    \n{:?}", twitch::get_video_comments(&client, "1818343419".to_owned())?);

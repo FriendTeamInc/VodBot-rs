@@ -74,22 +74,23 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
 pub fn get_channels_videos(
     client: &GQLClient,
     user_logins: Vec<String>,
+    r#type: String,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
     // Get all videos from a list of channels
 
     batched_query::<TwitchUser, Vod>(
-        Box::new(|alias, id, after| {
+        Box::new(move|alias, id, after| {
             formatdoc! {"
                 _{}: user( login: \"{}\" ) {{
                     id login displayName
-                    videos( after: \"{}\", first: 100, sort: TIME ) {{
+                    videos( after: \"{}\", first: 100, sort: TIME, types: [{}] ) {{
                         pageInfo {{ hasNextPage }}
                         edges {{ cursor node {{
                             id title createdAt status
                             broadcastType lengthSeconds
                             game {{ id name }}
                 }}  }}  }}  }}",
-                alias, id, after
+                alias, id, after, r#type
             }
         }),
         client,
@@ -116,8 +117,68 @@ pub fn get_channels_videos(
     )
 }
 
-pub fn get_channel_videos(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
-    Ok(get_channels_videos(client, vec![user_login])?
+pub fn get_channels_videos_archive(
+    client: &GQLClient,
+    user_logins: Vec<String>,
+) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
+    get_channels_videos(client, user_logins, "ARCHIVE".to_owned())
+}
+
+pub fn get_channels_videos_highlight(
+    client: &GQLClient,
+    user_logins: Vec<String>,
+) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
+    get_channels_videos(client, user_logins, "HIGHLIGHT".to_owned())
+}
+
+pub fn get_channels_videos_upload(
+    client: &GQLClient,
+    user_logins: Vec<String>,
+) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
+    get_channels_videos(client, user_logins, "UPLOAD".to_owned())
+}
+
+pub fn get_channels_videos_premiere(
+    client: &GQLClient,
+    user_logins: Vec<String>,
+) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
+    get_channels_videos(client, user_logins, "PREMIERE_UPLOAD, PAST_PREMIERE".to_owned())
+}
+
+pub fn get_channel_videos(client: &GQLClient, user_login: String, r#type: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos(client, vec![user_login], r#type)?
+        .values()
+        .last()
+        .unwrap()
+        .to_owned())
+}
+
+pub fn get_channel_videos_archive(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos_archive(client, vec![user_login])?
+        .values()
+        .last()
+        .unwrap()
+        .to_owned())
+}
+
+pub fn get_channel_videos_highlight(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos_highlight(client, vec![user_login])?
+        .values()
+        .last()
+        .unwrap()
+        .to_owned())
+}
+
+pub fn get_channel_videos_upload(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos_upload(client, vec![user_login])?
+        .values()
+        .last()
+        .unwrap()
+        .to_owned())
+}
+
+pub fn get_channel_videos_premiere(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos_premiere(client, vec![user_login])?
         .values()
         .last()
         .unwrap()

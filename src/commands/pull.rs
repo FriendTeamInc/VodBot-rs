@@ -24,17 +24,20 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let s: (Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>) = (
         c.iter().filter(|f| f.save_vods && conf.pull.save_vods).map(f).collect(),
         c.iter().filter(|f| f.save_chat && conf.pull.save_chat).map(f).collect(),
-        c.iter().filter(|f| f.save_clips && conf.pull.save_clips).map(f).collect(),
         c.iter().filter(|f| f.save_highlights && conf.pull.save_highlights).map(f).collect(),
         c.iter().filter(|f| f.save_premieres && conf.pull.save_premieres).map(f).collect(),
         c.iter().filter(|f| f.save_uploads && conf.pull.save_uploads).map(f).collect(),
+        c.iter().filter(|f| f.save_clips && conf.pull.save_clips).map(f).collect(),
     );
 
     let client = GQLClient::new(conf.pull.gql_client_id.clone());
 
-    let mut vods = twitch::get_channels_videos(&client, s.0)?;
-    // let chat = twitch::get_channels_videos(&client, s.1);
-    let mut clips = twitch::get_channels_clips(&client, s.2)?;
+    let mut vods = twitch::get_channels_videos_archive(&client, s.0)?;
+    // let mut chat = twitch::get_channels_videos(&client, s.1);
+    let mut highlights = twitch::get_channels_videos_highlight(&client, s.2)?;
+    let mut premieres = twitch::get_channels_videos_premiere(&client, s.3)?;
+    let mut uploads = twitch::get_channels_videos_upload(&client, s.4)?;
+    let mut clips = twitch::get_channels_clips(&client, s.5)?;
 
     // TODO: check disk and filter out existing videos
     // make a hashmap of usernames and video ids for vods, clips, etc
@@ -43,6 +46,13 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let vods_count: HashMap<_, _> = vods.iter().map(|(k, v)| (k, v.len())).collect();
     let vods_total: usize = vods_count.values().into_iter().sum();
     // let chat_count: HashMap<_, _> = chat.iter().map(|(k, v)| (k, v.len())).collect();
+    // let chat_total: usize = chat_count.values().into_iter().sum();
+    let highlights_count: HashMap<_, _> = highlights.iter().map(|(k, v)| (k, v.len())).collect();
+    let highlights_total: usize = highlights_count.values().into_iter().sum();
+    let premieres_count: HashMap<_, _> = premieres.iter().map(|(k, v)| (k, v.len())).collect();
+    let premieres_total: usize = premieres_count.values().into_iter().sum();
+    let uploads_count: HashMap<_, _> = uploads.iter().map(|(k, v)| (k, v.len())).collect();
+    let uploads_total: usize = uploads_count.values().into_iter().sum();
     let clips_count: HashMap<_, _> = clips.iter().map(|(k, v)| (k, v.len())).collect();
     let clips_total: usize = clips_count.values().into_iter().sum();
 
@@ -53,7 +63,10 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
                 f.to_owned(),
                 (
                     vods_count.get(f).unwrap_or(&0),
-                    // chat_count.get(f).unwrap_or(&0),
+                    &0usize, // chat_count.get(f).unwrap_or(&0),
+                    highlights_count.get(f).unwrap_or(&0),
+                    premieres_count.get(f).unwrap_or(&0),
+                    uploads_count.get(f).unwrap_or(&0),
                     clips_count.get(f).unwrap_or(&0),
                 ),
             )
@@ -63,9 +76,22 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     // we go by the order in the config, not whatever arbitrary order the hashmap may give
     for k in &users {
         let v = counts.get(k).unwrap();
-        println!("{}: {} Vods & {} Clips", k, v.0, v.1);
+        println!(
+            "{}: {} Vods, {} Chatlogs, {} Highlights, {} Premieres, {} Uploads, {} Clips",
+            k,
+            v.0,
+            v.1,
+            v.2,
+            v.3,
+            v.4,
+            v.5,
+        );
     }
     println!("Total Vods: {}", vods_total);
+    println!("Total Chatlogs: {}", 0usize);
+    println!("Total Highlights: {}", highlights_total);
+    println!("Total Premieres: {}", premieres_total);
+    println!("Total Uploads: {}", uploads_total);
     println!("Total Clips: {}", clips_total);
     println!("");
 
