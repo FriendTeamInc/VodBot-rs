@@ -66,20 +66,60 @@ pub fn load_config(path: &PathBuf) -> Result<Config, util::ExitMsg> {
 // #[serde(default)]
 // pub struct ConfigWebhooks {  }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ChatExportFormat {
+    Raw,  // JSON export
+    Ytt,  // YouTube Timed Text
+    Rt,   // RealText
+    Sami, // Synchronized Accessible Media Interchange
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FFMPEGLogLevel {
+    Quiet,
+    Panic,
+    Fatal,
+    Error,
+    Warning,
+    Info,
+    Verbose,
+    Debug,
+    Trace,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum YTTAlignment {
+    Left,
+    Right,
+    Center,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum YTTAnchor {
+    TopLeft,
+    TopCenter,
+    TopRight,
+    CenterLeft,
+    CenterCenter,
+    CenterRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
+}
+
 structstruck::strike! {
-    #[strikethrough[derive(Debug, Serialize, Deserialize)]]
-    #[strikethrough[serde(rename_all = "camelCase")]]
+    #[strikethrough[derive(Debug, Serialize, Deserialize, Validate)]]
+    #[strikethrough[serde(default, rename_all = "camelCase")]]
     pub struct Config {
-        #![derive(Validate)]
-        #![serde(default)]
         #[validate]
         pub channels: Vec<pub struct ConfigChannel {
-            #![derive(Validate)]
-            #![serde(default)]
             #[validate(min_length = 3)]
             #[validate(max_length = 24)]
             pub username: String,
-
             pub save_vods: bool,
             pub save_highlights: bool,
             pub save_uploads: bool,
@@ -89,8 +129,6 @@ structstruck::strike! {
         }>,
         #[validate]
         pub pull: pub struct ConfigPull {
-            #![derive(Validate)]
-            #![serde(default)]
             pub save_vods: bool,
             pub save_highlights: bool,
             pub save_uploads: bool,
@@ -101,39 +139,17 @@ structstruck::strike! {
             pub gql_client_id: String,
 
             pub download_workers: usize,
-            // pub download_chunk_size: usize,
             pub connection_retries: usize,
             pub connection_timeout: usize,
         },
         #[validate]
         pub chat: pub struct ConfigChat {
-            #![derive(Validate)]
-            #![serde(default)]
-            pub export_format: pub enum ChatExportFormatType {
-                Raw,  // JSON export
-                Ytt,  // YouTube Timed Text
-                Rt,   // RealText
-                Sami, // Synchronized Accessible Media Interchange
-            },
+            pub export_format: ChatExportFormat,
             pub message_display_time: usize,
             pub randomize_uncolored_names: bool,
 
-            pub ytt_align: pub enum YTTAlignment {
-                Left,
-                Right,
-                Center,
-            },
-            pub ytt_anchor: pub enum YTTAnchor {
-                TopLeft,
-                TopCenter,
-                TopRight,
-                CenterLeft,
-                CenterCenter,
-                CenterRight,
-                BottomLeft,
-                BottomCenter,
-                BottomRight,
-            },
+            pub ytt_align: YTTAlignment,
+            pub ytt_anchor: YTTAnchor,
             #[validate(minimum = 0)]
             #[validate(maximum = 100)]
             pub ytt_position_x: u8,
@@ -143,8 +159,6 @@ structstruck::strike! {
         },
         #[validate]
         pub stage: pub struct ConfigStage {
-            #![derive(Validate)]
-            #![serde(default)]
             #[validate(pattern = r"^[+-]\d{4}$")]
             pub timezone: String,
             pub description_macros: Vec<String>,
@@ -153,19 +167,7 @@ structstruck::strike! {
         },
         #[validate]
         pub export: pub struct ConfigExport {
-            #![derive(Validate)]
-            #![serde(default)]
-            pub ffmpeg_loglevel: pub enum FFMPEGLogLevel {
-                Quiet,
-                Panic,
-                Fatal,
-                Error,
-                Warning,
-                Info,
-                Verbose,
-                Debug,
-                Trace,
-            },
+            pub ffmpeg_loglevel: FFMPEGLogLevel,
             pub ffmpeg_stderr: Option<PathBuf>,
             pub video_enable: bool,
             pub chat_enable: bool,
@@ -173,8 +175,6 @@ structstruck::strike! {
         },
         #[validate]
         pub upload: pub struct ConfigUpload {
-            #![derive(Validate)]
-            #![serde(default)]
             pub chat_enable: bool,
             pub thumbnail_enable: bool,
             pub client_url: String,
@@ -191,8 +191,6 @@ structstruck::strike! {
         // pub thumbnail: ConfigThumbnail,
         #[validate]
         pub directories: pub struct ConfigDirectories {
-            #![derive(Validate)]
-            #![serde(default)]
             pub vods: PathBuf,
             pub highlights: PathBuf,
             pub uploads: PathBuf,
@@ -244,7 +242,6 @@ impl Default for ConfigPull {
 
             gql_client_id: String::from("kd1unb4b3q4t58fwlpcbzcbnm76a8fp"),
             download_workers: num_cpus::get(),
-            // download_chunk_size: 1024,
             connection_retries: 5,
             connection_timeout: 10,
         }
@@ -253,7 +250,7 @@ impl Default for ConfigPull {
 impl Default for ConfigChat {
     fn default() -> Self {
         Self {
-            export_format: ChatExportFormatType::Ytt,
+            export_format: ChatExportFormat::Ytt,
             message_display_time: 10,
             randomize_uncolored_names: true,
 
