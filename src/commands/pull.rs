@@ -5,7 +5,7 @@ use crate::config::{load_config, Config, ConfigChannel};
 use crate::gql::GQLClient;
 use crate::itd;
 use crate::twitch;
-use crate::util::{ExitCode, ExitMsg};
+use crate::util::{ExitCode, ExitMsg, create_dir};
 use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod, VodBotData};
 
 use reqwest::blocking::Client;
@@ -42,6 +42,43 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     // TODO: check disk and filter out existing videos
     // make a hashmap of usernames and video ids for vods, clips, etc
     // then do a filter on the above hashmaps
+
+    for k in &users {
+        let dir = &conf.directories;
+        let d = (
+            dir.vods.clone().join(&k).join("*.meta.json"),
+            dir.chat.clone().join(&k).join("*.meta.json"),
+            dir.highlights.clone().join(&k).join("*.meta.json"),
+            dir.premieres.clone().join(&k).join("*.meta.json"),
+            dir.uploads.clone().join(&k).join("*.meta.json"),
+            dir.clips.clone().join(&k).join("*.meta.json"),
+        );
+        let d = (
+            d.0.to_str().unwrap(),
+            d.1.to_str().unwrap(),
+            d.2.to_str().unwrap(),
+            d.3.to_str().unwrap(),
+            d.4.to_str().unwrap(),
+            d.5.to_str().unwrap(),
+        );
+        let w = |why| ExitMsg {
+            msg: format!("Failed to glob/wildcard directory, reason `{}`.", why),
+            code: ExitCode::CannotGlobDirectory,
+        };
+        let f = |f: PathBuf| {
+            let s = f.file_name().unwrap().to_str().unwrap();
+            String::from(&s[21..(s.len()-10)])
+        };
+        let i: (Vec<_>, Vec<_>, Vec<_>, Vec<_>, Vec<_>, Vec<_>) = (
+            glob::glob(d.0).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
+            glob::glob(d.1).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
+            glob::glob(d.2).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
+            glob::glob(d.3).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
+            glob::glob(d.4).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
+            glob::glob(d.5).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
+        );
+        println!("{} {:#?}", k, i);
+    }
 
     let vods_count: HashMap<_, _> = vods.iter().map(|(k, v)| (k, v.len())).collect();
     let vods_total: usize = vods_count.values().into_iter().sum();
@@ -99,9 +136,9 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let genclient = reqwest::blocking::Client::new();
 
     // now to download each set of videos per user
+    let dir = &conf.directories;
     for k in &users {
         println!("Pulling videos for `{}` ...", k);
-        let dir = &conf.directories;
 
         // Vods
         download_stuff::<Vod>(
@@ -165,7 +202,9 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
     let mut has_content = false;
     for c in content {
         has_content = true;
-        let mut output_path = output_dir.clone().join(c.filename());
+        let output_path = output_dir.clone().join(user_id);
+        create_dir(&output_path)?;
+        let mut output_path = output_path.join(c.filename());
         let token = tokens.get(&c.identifier()).unwrap().to_owned();
         let c = download_method(conf, c, token, output_path.clone(), genclient, noun.clone())?;
 

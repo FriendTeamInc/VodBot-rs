@@ -32,6 +32,8 @@ pub enum ExitCode {
     FfmpegReturnedError,
     FfmpegInterrupted,
 
+    CannotGlobDirectory,
+
     // Command-specific codes
     InitCannotOpenConfig,
     InitCannotWriteConfig,
