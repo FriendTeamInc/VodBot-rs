@@ -197,6 +197,16 @@ pub struct Channel {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct ChatLog {
+    pub video_id: String,
+    // pub streamer_id: String,
+    // pub streamer_login: String,
+    // pub streamer_name: String,
+    pub messages: Vec<ChatMessage>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatMessage {
     pub user_name: String,
     pub color: String,

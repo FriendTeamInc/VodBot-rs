@@ -21,7 +21,7 @@ struct QueryMap {
 fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
     query: Box<dyn Fn(String, String, String) -> String>,
     client: &GQLClient,
-    var: Vec<String>,
+    var: &Vec<String>,
     mut tf: Box<dyn FnMut(&GQLClient, &T, &mut Vec<R>) -> Result<(bool, String), ExitMsg>>,
 ) -> Result<HashMap<String, Vec<R>>, ExitMsg> {
     let mut queries: HashMap<String, QueryMap> = var
@@ -73,7 +73,7 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
 
 pub fn get_channels_videos(
     client: &GQLClient,
-    user_logins: Vec<String>,
+    user_logins: &Vec<String>,
     r#type: String,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
     // Get all videos from a list of channels
@@ -101,7 +101,7 @@ pub fn get_channels_videos(
 
             // For each Vod, lets get it's vod chapters now too
             let vod_ids: Vec<_> = u.edges.iter().map(|f| f.node.id.clone()).collect();
-            let chapters = get_videos_chapters(client, vod_ids)?;
+            let chapters = get_videos_chapters(client, &vod_ids)?;
 
             for s in &u.edges {
                 let c = chapters.get(&s.node.id).unwrap().to_owned();
@@ -119,66 +119,66 @@ pub fn get_channels_videos(
 
 pub fn get_channels_videos_archive(
     client: &GQLClient,
-    user_logins: Vec<String>,
+    user_logins: &Vec<String>,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
     get_channels_videos(client, user_logins, "ARCHIVE".to_owned())
 }
 
 pub fn get_channels_videos_highlight(
     client: &GQLClient,
-    user_logins: Vec<String>,
+    user_logins: &Vec<String>,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
     get_channels_videos(client, user_logins, "HIGHLIGHT".to_owned())
 }
 
 pub fn get_channels_videos_upload(
     client: &GQLClient,
-    user_logins: Vec<String>,
+    user_logins: &Vec<String>,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
     get_channels_videos(client, user_logins, "UPLOAD".to_owned())
 }
 
 pub fn get_channels_videos_premiere(
     client: &GQLClient,
-    user_logins: Vec<String>,
+    user_logins: &Vec<String>,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
     get_channels_videos(client, user_logins, "PREMIERE_UPLOAD, PAST_PREMIERE".to_owned())
 }
 
-pub fn get_channel_videos(client: &GQLClient, user_login: String, r#type: String) -> Result<Vec<Vod>, ExitMsg> {
-    Ok(get_channels_videos(client, vec![user_login], r#type)?
+pub fn _get_channel_videos(client: &GQLClient, user_login: String, r#type: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos(client, &vec![user_login], r#type)?
         .values()
         .last()
         .unwrap()
         .to_owned())
 }
 
-pub fn get_channel_videos_archive(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
-    Ok(get_channels_videos_archive(client, vec![user_login])?
+pub fn _get_channel_videos_archive(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos_archive(client, &vec![user_login])?
         .values()
         .last()
         .unwrap()
         .to_owned())
 }
 
-pub fn get_channel_videos_highlight(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
-    Ok(get_channels_videos_highlight(client, vec![user_login])?
+pub fn _get_channel_videos_highlight(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos_highlight(client, &vec![user_login])?
         .values()
         .last()
         .unwrap()
         .to_owned())
 }
 
-pub fn get_channel_videos_upload(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
-    Ok(get_channels_videos_upload(client, vec![user_login])?
+pub fn _get_channel_videos_upload(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos_upload(client, &vec![user_login])?
         .values()
         .last()
         .unwrap()
         .to_owned())
 }
 
-pub fn get_channel_videos_premiere(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
-    Ok(get_channels_videos_premiere(client, vec![user_login])?
+pub fn _get_channel_videos_premiere(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+    Ok(get_channels_videos_premiere(client, &vec![user_login])?
         .values()
         .last()
         .unwrap()
@@ -187,7 +187,7 @@ pub fn get_channel_videos_premiere(client: &GQLClient, user_login: String) -> Re
 
 pub fn get_channels_clips(
     client: &GQLClient,
-    user_logins: Vec<String>,
+    user_logins: &Vec<String>,
 ) -> Result<HashMap<String, Vec<Clip>>, ExitMsg> {
     // Get all clips from a list of channels
 
@@ -232,7 +232,7 @@ pub fn get_channels_clips(
 }
 
 pub fn get_channel_clips(client: &GQLClient, user_login: String) -> Result<Vec<Clip>, ExitMsg> {
-    Ok(get_channels_clips(client, vec![user_login])?
+    Ok(get_channels_clips(client, &vec![user_login])?
         .values()
         .last()
         .unwrap()
@@ -241,9 +241,13 @@ pub fn get_channel_clips(client: &GQLClient, user_login: String) -> Result<Vec<C
 
 pub fn get_videos_comments(
     client: &GQLClient,
-    video_ids: Vec<String>,
+    video_ids: &Vec<String>,
 ) -> Result<HashMap<String, Vec<ChatMessage>>, ExitMsg> {
     // Get all videos from a list of channels
+
+    struct Test {
+        pub test: String,
+    }
 
     batched_query::<TwitchVideo, ChatMessage>(
         Box::new(|alias, id, after| {
@@ -283,7 +287,7 @@ pub fn get_video_comments(
     client: &GQLClient,
     video_id: String,
 ) -> Result<Vec<ChatMessage>, ExitMsg> {
-    Ok(get_videos_comments(client, vec![video_id])?
+    Ok(get_videos_comments(client, &vec![video_id])?
         .values()
         .last()
         .unwrap()
@@ -292,7 +296,7 @@ pub fn get_video_comments(
 
 pub fn get_videos_chapters(
     client: &GQLClient,
-    video_ids: Vec<String>,
+    video_ids: &Vec<String>,
 ) -> Result<HashMap<String, Vec<VodChapter>>, ExitMsg> {
     // Get all videos from a list of channels
 
@@ -337,7 +341,7 @@ pub fn get_video_chapters(
     client: &GQLClient,
     video_id: String,
 ) -> Result<Vec<VodChapter>, ExitMsg> {
-    Ok(get_videos_chapters(client, vec![video_id])?
+    Ok(get_videos_chapters(client, &vec![video_id])?
         .values()
         .last()
         .unwrap()
@@ -346,7 +350,7 @@ pub fn get_video_chapters(
 
 pub fn get_videos_playback_access_tokens(
     client: &GQLClient,
-    video_ids: Vec<String>,
+    video_ids: &Vec<String>,
 ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg> {
     // Get all video access tokens from a list of video ids
 
@@ -382,7 +386,7 @@ pub fn get_video_playback_access_token(
     client: &GQLClient,
     video_id: String,
 ) -> Result<PlaybackAccessToken, ExitMsg> {
-    Ok(get_videos_playback_access_tokens(client, vec![video_id])?
+    Ok(get_videos_playback_access_tokens(client, &vec![video_id])?
         .values()
         .last()
         .unwrap()
@@ -391,7 +395,7 @@ pub fn get_video_playback_access_token(
 
 pub fn get_clips_playback_access_tokens(
     client: &GQLClient,
-    clip_slugs: Vec<String>,
+    clip_slugs: &Vec<String>,
 ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg> {
     // Get all video access tokens from a list of video ids
 
@@ -427,7 +431,7 @@ pub fn get_clip_playback_access_token(
     client: &GQLClient,
     clip_slug: String,
 ) -> Result<PlaybackAccessToken, ExitMsg> {
-    Ok(get_clips_playback_access_tokens(client, vec![clip_slug])?
+    Ok(get_clips_playback_access_tokens(client, &vec![clip_slug])?
         .values()
         .last()
         .unwrap()

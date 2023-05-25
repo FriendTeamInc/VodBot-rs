@@ -6,7 +6,7 @@ use crate::gql::GQLClient;
 use crate::itd;
 use crate::twitch;
 use crate::util::{ExitCode, ExitMsg, create_dir, get_meta_ids};
-use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod, VodBotData, ChatMessage};
+use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod, VodBotData, ChatMessage, ChatLog};
 
 use reqwest::blocking::Client;
 use std::collections::HashMap;
@@ -20,53 +20,51 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let users: Vec<_> = c.iter().map(f).collect();
     println!("Checking users: {} ...", users.join(", "));
 
-    #[rustfmt::skip]
-    let s: (Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>) = (
-        c.iter().filter(|f| f.save_vods && conf.pull.save_vods).map(f).collect(),
-        c.iter().filter(|f| f.save_chat && conf.pull.save_chat).map(f).collect(),
-        c.iter().filter(|f| f.save_highlights && conf.pull.save_highlights).map(f).collect(),
-        c.iter().filter(|f| f.save_premieres && conf.pull.save_premieres).map(f).collect(),
-        c.iter().filter(|f| f.save_uploads && conf.pull.save_uploads).map(f).collect(),
-        c.iter().filter(|f| f.save_clips && conf.pull.save_clips).map(f).collect(),
-    );
+    // TODO: do save_* checks?
 
     let client = GQLClient::new(conf.pull.gql_client_id.clone());
 
-    let mut vods = twitch::get_channels_videos_archive(&client, s.0)?;
-    // chat is a bit of a weird one, we need to map from user id's to video ids to chat logs
-    // TODO: figure this out
-    let mut chat = HashMap::<String, Vec<ChatMessage>>::new(); //twitch::get_videos_comments(&client, s.1);
-    let mut highlights = twitch::get_channels_videos_highlight(&client, s.2)?;
-    let mut premieres = twitch::get_channels_videos_premiere(&client, s.3)?;
-    let mut uploads = twitch::get_channels_videos_upload(&client, s.4)?;
-    let mut clips = twitch::get_channels_clips(&client, s.5)?;
+    let mut vods = twitch::get_channels_videos_archive(&client, &users)?;
+    let mut highlights = twitch::get_channels_videos_highlight(&client, &users)?;
+    let mut premieres = twitch::get_channels_videos_premiere(&client, &users)?;
+    let mut uploads = twitch::get_channels_videos_upload(&client, &users)?;
+    let mut clips = twitch::get_channels_clips(&client, &users)?;
 
-    // TODO: check disk and filter out existing videos
-    // make a hashmap of usernames and video ids for vods, clips, etc
-    // then do a filter on the above hashmaps
+    let mut chat = HashMap::<String, Vec<ChatLog>>::new();
+    for k in &users {
+        let vods = vods.get(k).unwrap();
+        let vod_ids: Vec<_> = vods.iter().map(|f| f.id).collect();
+        let v = twitch::get_videos_comments(&client, &vod_ids)?;
+        // TODO: move this bit into twitch.rs?
+        let v: Vec<_> = v.into_iter().map(|(u, v)| {
+            ChatLog {
+                video_id: u,
+                messages: v,
+            }
+        }).collect();
+        chat.insert(k.clone(), v);
+    }
 
     for k in &users {
         let dir = &conf.directories;
         let d = (
             get_meta_ids(dir.vods.clone().join(&k))?,
-            get_meta_ids(dir.chat.clone().join(&k))?,
             get_meta_ids(dir.highlights.clone().join(&k))?,
             get_meta_ids(dir.premieres.clone().join(&k))?,
             get_meta_ids(dir.uploads.clone().join(&k))?,
             get_meta_ids(dir.clips.clone().join(&k))?,
+            get_meta_ids(dir.chat.clone().join(&k))?,
         );
         d.0.into_iter().for_each(|v| vods.get_mut(k).unwrap().retain(|f| f.id != v));
-        // d.1.into_iter().for_each(|v| chat.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.2.into_iter().for_each(|v| highlights.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.3.into_iter().for_each(|v| premieres.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.4.into_iter().for_each(|v| uploads.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.5.into_iter().for_each(|v| clips.get_mut(k).unwrap().retain(|f| f.slug != v));
+        d.1.into_iter().for_each(|v| highlights.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.2.into_iter().for_each(|v| premieres.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.3.into_iter().for_each(|v| uploads.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.4.into_iter().for_each(|v| clips.get_mut(k).unwrap().retain(|f| f.slug != v));
+        // d.5.into_iter().for_each(|v| chat.get_mut(k).unwrap().retain(|f| f.id != v));
     }
 
     let vods_count: HashMap<_, _> = vods.iter().map(|(k, v)| (k, v.len())).collect();
     let vods_total: usize = vods_count.values().into_iter().sum();
-    let chat_count: HashMap<_, _> = chat.iter().map(|(k, v)| (k, v.len())).collect();
-    let chat_total: usize = chat_count.values().into_iter().sum();
     let highlights_count: HashMap<_, _> = highlights.iter().map(|(k, v)| (k, v.len())).collect();
     let highlights_total: usize = highlights_count.values().into_iter().sum();
     let premieres_count: HashMap<_, _> = premieres.iter().map(|(k, v)| (k, v.len())).collect();
@@ -75,7 +73,9 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let uploads_total: usize = uploads_count.values().into_iter().sum();
     let clips_count: HashMap<_, _> = clips.iter().map(|(k, v)| (k, v.len())).collect();
     let clips_total: usize = clips_count.values().into_iter().sum();
-    let total_total: usize = vods_total + chat_total + highlights_total + premieres_total + uploads_total + clips_total;
+    let chat_count: HashMap<_, _> = chat.iter().map(|(k, v)| (k, v.len())).collect();
+    let chat_total: usize = chat_count.values().into_iter().sum();
+    let total_total: usize = vods_total + highlights_total + premieres_total + uploads_total + clips_total + chat_total;
 
     let counts: HashMap<_, _> = users
         .iter()
@@ -84,11 +84,11 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
                 f.to_owned(),
                 (
                     vods_count.get(f).unwrap_or(&0).clone(),
-                    chat_count.get(f).unwrap_or(&0).clone(),
                     highlights_count.get(f).unwrap_or(&0).clone(),
                     premieres_count.get(f).unwrap_or(&0).clone(),
                     uploads_count.get(f).unwrap_or(&0).clone(),
                     clips_count.get(f).unwrap_or(&0).clone(),
+                    chat_count.get(f).unwrap_or(&0).clone(),
                 ),
             )
         })
@@ -98,16 +98,16 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     for k in &users {
         let v = counts.get(k).unwrap();
         println!(
-            "{}: {} Vods, {} Chatlogs, {} Highlights, {} Premieres, {} Uploads, {} Clips",
+            "{}: {} Vods, {} Highlights, {} Premieres, {} Uploads, {} Clips, {} Chatlogs",
             k, v.0, v.1, v.2, v.3, v.4, v.5,
         );
     }
     println!("Total Vods: {}", vods_total);
-    println!("Total Chatlogs: {}", 0usize);
     println!("Total Highlights: {}", highlights_total);
     println!("Total Premieres: {}", premieres_total);
     println!("Total Uploads: {}", uploads_total);
     println!("Total Clips: {}", clips_total);
+    println!("Total Chatlogs: {}", chat_total);
     println!("Total: {}", total_total);
     println!("");
 
@@ -132,6 +132,9 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
             itd::download_vod, &conf, &client, &genclient,
             "Vod".to_owned(),
         )?;
+        // Chatlogs
+        // TODO
+
         // Highlights
         download_stuff::<Vod>(
             dir.highlights.clone(), k, &mut highlights,
@@ -173,7 +176,7 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
     content: &mut HashMap<String, Vec<T>>,
     token_method: impl FnOnce(
         &GQLClient,
-        Vec<String>,
+        &Vec<String>,
     ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg>,
     download_method: impl Fn(&Config, T, PlaybackAccessToken, PathBuf, &Client, String) -> Result<T, ExitMsg>,
     conf: &Config,
@@ -182,7 +185,7 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
     noun: String,
 ) -> Result<(), ExitMsg> {
     let content = content.remove(user_id).unwrap();
-    let tokens = token_method(gqlclient, content.iter().map(|f| f.identifier()).collect())?;
+    let tokens = token_method(gqlclient, &content.iter().map(|f| f.identifier()).collect())?;
 
     let mut has_content = false;
     for c in content {
