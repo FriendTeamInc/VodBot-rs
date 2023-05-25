@@ -5,8 +5,8 @@ use crate::config::{load_config, Config, ConfigChannel};
 use crate::gql::GQLClient;
 use crate::itd;
 use crate::twitch;
-use crate::util::{ExitCode, ExitMsg, create_dir};
-use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod, VodBotData};
+use crate::util::{ExitCode, ExitMsg, create_dir, get_meta_ids};
+use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod, VodBotData, ChatMessage};
 
 use reqwest::blocking::Client;
 use std::collections::HashMap;
@@ -33,7 +33,9 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let client = GQLClient::new(conf.pull.gql_client_id.clone());
 
     let mut vods = twitch::get_channels_videos_archive(&client, s.0)?;
-    // let mut chat = twitch::get_channels_videos(&client, s.1);
+    // chat is a bit of a weird one, we need to map from user id's to video ids to chat logs
+    // TODO: figure this out
+    let mut chat = HashMap::<String, Vec<ChatMessage>>::new(); //twitch::get_videos_comments(&client, s.1);
     let mut highlights = twitch::get_channels_videos_highlight(&client, s.2)?;
     let mut premieres = twitch::get_channels_videos_premiere(&client, s.3)?;
     let mut uploads = twitch::get_channels_videos_upload(&client, s.4)?;
@@ -46,44 +48,25 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     for k in &users {
         let dir = &conf.directories;
         let d = (
-            dir.vods.clone().join(&k).join("*.meta.json"),
-            dir.chat.clone().join(&k).join("*.meta.json"),
-            dir.highlights.clone().join(&k).join("*.meta.json"),
-            dir.premieres.clone().join(&k).join("*.meta.json"),
-            dir.uploads.clone().join(&k).join("*.meta.json"),
-            dir.clips.clone().join(&k).join("*.meta.json"),
+            get_meta_ids(dir.vods.clone().join(&k))?,
+            get_meta_ids(dir.chat.clone().join(&k))?,
+            get_meta_ids(dir.highlights.clone().join(&k))?,
+            get_meta_ids(dir.premieres.clone().join(&k))?,
+            get_meta_ids(dir.uploads.clone().join(&k))?,
+            get_meta_ids(dir.clips.clone().join(&k))?,
         );
-        let d = (
-            d.0.to_str().unwrap(),
-            d.1.to_str().unwrap(),
-            d.2.to_str().unwrap(),
-            d.3.to_str().unwrap(),
-            d.4.to_str().unwrap(),
-            d.5.to_str().unwrap(),
-        );
-        let w = |why| ExitMsg {
-            msg: format!("Failed to glob/wildcard directory, reason `{}`.", why),
-            code: ExitCode::CannotGlobDirectory,
-        };
-        let f = |f: PathBuf| {
-            let s = f.file_name().unwrap().to_str().unwrap();
-            String::from(&s[21..(s.len()-10)])
-        };
-        let i: (Vec<_>, Vec<_>, Vec<_>, Vec<_>, Vec<_>, Vec<_>) = (
-            glob::glob(d.0).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
-            glob::glob(d.1).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
-            glob::glob(d.2).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
-            glob::glob(d.3).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
-            glob::glob(d.4).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
-            glob::glob(d.5).map_err(w)?.filter_map(|f| f.ok()).map(f).collect(),
-        );
-        println!("{} {:#?}", k, i);
+        d.0.into_iter().for_each(|v| vods.get_mut(k).unwrap().retain(|f| f.id != v));
+        // d.1.into_iter().for_each(|v| chat.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.2.into_iter().for_each(|v| highlights.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.3.into_iter().for_each(|v| premieres.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.4.into_iter().for_each(|v| uploads.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.5.into_iter().for_each(|v| clips.get_mut(k).unwrap().retain(|f| f.slug != v));
     }
 
     let vods_count: HashMap<_, _> = vods.iter().map(|(k, v)| (k, v.len())).collect();
     let vods_total: usize = vods_count.values().into_iter().sum();
-    // let chat_count: HashMap<_, _> = chat.iter().map(|(k, v)| (k, v.len())).collect();
-    // let chat_total: usize = chat_count.values().into_iter().sum();
+    let chat_count: HashMap<_, _> = chat.iter().map(|(k, v)| (k, v.len())).collect();
+    let chat_total: usize = chat_count.values().into_iter().sum();
     let highlights_count: HashMap<_, _> = highlights.iter().map(|(k, v)| (k, v.len())).collect();
     let highlights_total: usize = highlights_count.values().into_iter().sum();
     let premieres_count: HashMap<_, _> = premieres.iter().map(|(k, v)| (k, v.len())).collect();
@@ -92,6 +75,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let uploads_total: usize = uploads_count.values().into_iter().sum();
     let clips_count: HashMap<_, _> = clips.iter().map(|(k, v)| (k, v.len())).collect();
     let clips_total: usize = clips_count.values().into_iter().sum();
+    let total_total: usize = vods_total + chat_total + highlights_total + premieres_total + uploads_total + clips_total;
 
     let counts: HashMap<_, _> = users
         .iter()
@@ -99,12 +83,12 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
             (
                 f.to_owned(),
                 (
-                    vods_count.get(f).unwrap_or(&0),
-                    &0usize, // chat_count.get(f).unwrap_or(&0),
-                    highlights_count.get(f).unwrap_or(&0),
-                    premieres_count.get(f).unwrap_or(&0),
-                    uploads_count.get(f).unwrap_or(&0),
-                    clips_count.get(f).unwrap_or(&0),
+                    vods_count.get(f).unwrap_or(&0).clone(),
+                    chat_count.get(f).unwrap_or(&0).clone(),
+                    highlights_count.get(f).unwrap_or(&0).clone(),
+                    premieres_count.get(f).unwrap_or(&0).clone(),
+                    uploads_count.get(f).unwrap_or(&0).clone(),
+                    clips_count.get(f).unwrap_or(&0).clone(),
                 ),
             )
         })
@@ -115,13 +99,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
         let v = counts.get(k).unwrap();
         println!(
             "{}: {} Vods, {} Chatlogs, {} Highlights, {} Premieres, {} Uploads, {} Clips",
-            k,
-            v.0,
-            v.1,
-            v.2,
-            v.3,
-            v.4,
-            v.5,
+            k, v.0, v.1, v.2, v.3, v.4, v.5,
         );
     }
     println!("Total Vods: {}", vods_total);
@@ -130,6 +108,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     println!("Total Premieres: {}", premieres_total);
     println!("Total Uploads: {}", uploads_total);
     println!("Total Clips: {}", clips_total);
+    println!("Total: {}", total_total);
     println!("");
 
     // create a new client (for making generic http requests)
@@ -138,7 +117,13 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     // now to download each set of videos per user
     let dir = &conf.directories;
     for k in &users {
-        println!("Pulling videos for `{}` ...", k);
+        let count = counts.get(k).unwrap_or(&(0, 0, 0, 0, 0, 0));
+        let user_total = count.0 + count.1 + count.2 + count.3 + count.4 + count.5;
+        if user_total == 0 {
+            break;
+        }
+
+        println!("Pulling {} videos for `{}` ...", user_total, k);
 
         // Vods
         download_stuff::<Vod>(
