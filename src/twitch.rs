@@ -245,10 +245,6 @@ pub fn get_videos_comments(
 ) -> Result<HashMap<String, Vec<ChatMessage>>, ExitMsg> {
     // Get all videos from a list of channels
 
-    struct Test {
-        pub test: String,
-    }
-
     batched_query::<TwitchVideo, ChatMessage>(
         Box::new(|alias, id, after| {
             formatdoc! {"

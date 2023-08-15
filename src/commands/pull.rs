@@ -33,7 +33,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let mut chat = HashMap::<String, Vec<ChatLog>>::new();
     for k in &users {
         let vods = vods.get(k).unwrap();
-        let vod_ids: Vec<_> = vods.iter().map(|f| f.id).collect();
+        let vod_ids: Vec<_> = vods.iter().map(|f| f.id.clone()).collect();
         let v = twitch::get_videos_comments(&client, &vod_ids)?;
         // TODO: move this bit into twitch.rs?
         let v: Vec<_> = v.into_iter().map(|(u, v)| {
