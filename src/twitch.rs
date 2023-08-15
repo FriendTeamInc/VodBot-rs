@@ -42,7 +42,7 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
         .map(|f| ("_".to_owned() + &f.replace("-", "_"), Vec::new()))
         .collect();
 
-    loop {
+    'queryloop: loop {
         let q: Vec<_> = queries
             .values()
             .cloned()
@@ -56,7 +56,11 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
             let q = queries.get_mut(&k).unwrap();
             let r = results.get_mut(&k).unwrap();
 
-            // TODO: add check for v to be Some?
+            if v.is_none() {
+                // FIXME: this probably isn't a great idea, and may miss some results. further testing recommended.
+                break 'queryloop;
+            }
+
             (q.next, q.after) = tf(&client, &v.unwrap(), r)?;
         }
 
@@ -374,6 +378,7 @@ pub fn get_videos_playback_access_tokens(
     )?;
 
     Ok(j.into_iter()
+        .filter(|f| f.1.len() != 0)
         .map(|(k, v)| (k, v.last().unwrap().to_owned()))
         .collect())
 }
@@ -419,6 +424,7 @@ pub fn get_clips_playback_access_tokens(
     )?;
 
     Ok(j.into_iter()
+        .filter(|f| f.1.len() != 0)
         .map(|(k, v)| (k, v.last().unwrap().to_owned()))
         .collect())
 }

@@ -5,8 +5,8 @@ use crate::config::{load_config, Config, ConfigChannel};
 use crate::gql::GQLClient;
 use crate::itd;
 use crate::twitch;
-use crate::util::{ExitCode, ExitMsg, create_dir, get_meta_ids};
-use crate::vodbot_api::{Clip, PlaybackAccessToken, Vod, VodBotData, ChatMessage, ChatLog};
+use crate::util::{create_dir, get_meta_ids, ExitCode, ExitMsg};
+use crate::vodbot_api::{ChatLog, ChatMessage, Clip, PlaybackAccessToken, Vod, VodBotData};
 
 use reqwest::blocking::Client;
 use std::collections::HashMap;
@@ -36,12 +36,10 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
         let vod_ids: Vec<_> = vods.iter().map(|f| f.id.clone()).collect();
         let v = twitch::get_videos_comments(&client, &vod_ids)?;
         // TODO: move this bit into twitch.rs?
-        let v: Vec<_> = v.into_iter().map(|(u, v)| {
-            ChatLog {
-                video_id: u,
-                messages: v,
-            }
-        }).collect();
+        let v: Vec<_> = v
+            .into_iter()
+            .map(|(u, v)| ChatLog { video_id: u, messages: v })
+            .collect();
         chat.insert(k.clone(), v);
     }
 
@@ -75,7 +73,8 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let clips_total: usize = clips_count.values().into_iter().sum();
     let chat_count: HashMap<_, _> = chat.iter().map(|(k, v)| (k, v.len())).collect();
     let chat_total: usize = chat_count.values().into_iter().sum();
-    let total_total: usize = vods_total + highlights_total + premieres_total + uploads_total + clips_total + chat_total;
+    let total_total: usize =
+        vods_total + highlights_total + premieres_total + uploads_total + clips_total + chat_total;
 
     let counts: HashMap<_, _> = users
         .iter()
@@ -178,7 +177,14 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
         &GQLClient,
         &Vec<String>,
     ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg>,
-    download_method: impl Fn(&Config, T, PlaybackAccessToken, PathBuf, &Client, String) -> Result<T, ExitMsg>,
+    download_method: impl Fn(
+        &Config,
+        T,
+        PlaybackAccessToken,
+        PathBuf,
+        &Client,
+        String,
+    ) -> Result<T, ExitMsg>,
     conf: &Config,
     gqlclient: &GQLClient,
     genclient: &Client,

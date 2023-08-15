@@ -130,17 +130,15 @@ pub fn get_meta_ids(path: PathBuf) -> Result<Vec<String>, ExitMsg> {
 
     // TODO: remove glob and just list_dir manually
 
-    Ok(
-        glob::glob(path)
-            .map_err(|why| ExitMsg {
-                msg: format!("Failed to glob/wildcard directory, reason `{}`.", why),
-                code: ExitCode::CannotGlobDirectory,
-            })?
-            .filter_map(|f| f.ok())
-            .map(|f| {
-                let s = f.file_name().unwrap().to_str().unwrap();
-                String::from(&s[21..(s.len()-10)])
-            })
-            .collect()
-    )
+    Ok(glob::glob(path)
+        .map_err(|why| ExitMsg {
+            msg: format!("Failed to glob/wildcard directory, reason `{}`.", why),
+            code: ExitCode::CannotGlobDirectory,
+        })?
+        .filter_map(|f| f.ok())
+        .map(|f| {
+            let s = f.file_name().unwrap().to_str().unwrap();
+            String::from(&s[21..(s.len() - 10)])
+        })
+        .collect())
 }

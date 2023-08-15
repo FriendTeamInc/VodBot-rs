@@ -18,7 +18,7 @@ pub fn download_vod(
     token: PlaybackAccessToken,
     output_path: PathBuf,
     client: &Client,
-    noun: String
+    noun: String,
 ) -> Result<Vod, ExitMsg> {
     print!("\r{} `{}` ...", noun, vod.id);
     stdout().flush().unwrap();
