@@ -164,3 +164,17 @@ pub fn get_meta_ids(path: PathBuf) -> Result<Vec<String>, ExitMsg> {
         })
         .collect())
 }
+
+pub fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
+    let mut path = dirs::config_dir().unwrap();
+    log::trace!("config dir: {}", path.to_str().unwrap());
+    path.push("vodbot");
+    for dir in dirs {
+        path.push(dir);
+    }
+    path
+}
+
+pub fn default_config_location() -> PathBuf {
+    from_vodbot_dir(&["config.json"])
+}

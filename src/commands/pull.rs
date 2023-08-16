@@ -6,7 +6,7 @@ use crate::gql::GQLClient;
 use crate::itd;
 use crate::twitch;
 use crate::util::{create_dir, get_meta_ids, ExitCode, ExitMsg};
-use crate::vodbot_api::{ChatLog, ChatMessage, Clip, PlaybackAccessToken, Vod, VodBotData};
+use crate::vodbot_api::{ChatLog, Clip, PlaybackAccessToken, Vod, VodBotData};
 
 use reqwest::blocking::Client;
 use std::collections::HashMap;
@@ -145,7 +145,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
             "Vod".to_owned(),
         )?;
         // Chatlogs
-        // TODO
+        // TODO: take `chat` variable, grab logs downloaded for `k`, and save it to disk.
 
         // Highlights
         download_stuff::<Vod>(

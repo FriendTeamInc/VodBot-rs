@@ -11,7 +11,7 @@ pub fn run(overwrite_confirm: bool) -> Result<(), util::ExitMsg> {
         ..Default::default()
     };
 
-    let config_path = config::default_config_location();
+    let config_path = util::default_config_location();
 
     println!(
         "Creating default config file at `{}`...",

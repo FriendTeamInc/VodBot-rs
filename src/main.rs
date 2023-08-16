@@ -1,20 +1,8 @@
 // VodBot (c) 2020-23 Logan "NotQuiteApex" Hickok-Dickson
 
-mod cli;
-mod config;
-mod gql;
-mod itd;
-mod twitch;
-mod twitch_api;
-mod util;
-mod vodbot_api;
-mod commands {
-    pub mod info;
-    pub mod init;
-    pub mod pull;
-}
-
-use crate::cli::{Cli, Commands};
+use vodbot::cli::{Cli, Commands};
+use vodbot::commands;
+use vodbot::util;
 
 use clap::Parser;
 
@@ -58,9 +46,7 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
         })?;
 
     // Figure out what config path to use
-    let config_path = args
-        .config_path
-        .unwrap_or(config::default_config_location());
+    let config_path = args.config_path.unwrap_or(util::default_config_location());
 
     // Run various commands
     log::trace!("args.command: {:?}", args.command);

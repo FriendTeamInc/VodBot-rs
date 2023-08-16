@@ -4,26 +4,12 @@ use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
 use std::{fs, path::PathBuf};
 
-use crate::util;
+use crate::util::{from_vodbot_dir, ExitCode, ExitMsg};
 
-pub fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
-    let mut path = dirs::config_dir().unwrap();
-    log::trace!("config dir: {}", path.to_str().unwrap());
-    path.push("vodbot");
-    for dir in dirs {
-        path.push(dir);
-    }
-    path
-}
-
-pub fn default_config_location() -> PathBuf {
-    from_vodbot_dir(&["config.json"])
-}
-
-pub fn load_config(path: &PathBuf) -> Result<Config, util::ExitMsg> {
+pub fn load_config(path: &PathBuf) -> Result<Config, ExitMsg> {
     let file = fs::File::open(path).map_err(|why| {
-        util::ExitMsg::new(
-            util::ExitCode::CannotOpenConfig,
+        ExitMsg::new(
+            ExitCode::CannotOpenConfig,
             format!(
                 "Failed to open config at `{}`, reason: \"{}\".",
                 &path.display(),
@@ -33,8 +19,8 @@ pub fn load_config(path: &PathBuf) -> Result<Config, util::ExitMsg> {
     })?;
 
     let json: Config = serde_json::from_reader(file).map_err(|why| {
-        util::ExitMsg::new(
-            util::ExitCode::CannotParseConfig,
+        ExitMsg::new(
+            ExitCode::CannotParseConfig,
             format!(
                 "Failed to parse config at `{}`, reason: \"{}\".",
                 &path.display(),
@@ -44,8 +30,8 @@ pub fn load_config(path: &PathBuf) -> Result<Config, util::ExitMsg> {
     })?;
 
     json.validate().map_err(|why| {
-        util::ExitMsg::new(
-            util::ExitCode::CannotValidateConfig,
+        ExitMsg::new(
+            ExitCode::CannotValidateConfig,
             format!(
                 "Failed to validate config at `{}`, reason: \"{}\".",
                 &path.display(),
