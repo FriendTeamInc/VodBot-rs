@@ -54,6 +54,8 @@ pub enum ExitCode {
     PullCannotParseChunk,
     PullCannotWriteChunk,
     PullCannotOpenMeta,
+    PullFailedToRecieveOnChannel,
+    PullFailedToSendOnChannel,
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +81,7 @@ impl std::fmt::Display for ExitMsg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}\nExit code: {:?} ({})",
+            "{} Exit code: {:?} ({})",
             self.msg.as_str(),
             self.code,
             self.code.clone() as i32
@@ -148,6 +150,10 @@ pub fn get_meta_ids(path: PathBuf) -> Result<Vec<String>, ExitMsg> {
     let path = path.join("*.meta.json");
     let path = path.to_str().unwrap();
 
+    // strings we use in making the file name, they have standard sizes so we reference them here.
+    let extension = ".meta.json";
+    let timestamp_base = "1970-01-01T00;00;00Z";
+
     // TODO: remove glob and just list_dir manually
 
     Ok(glob::glob(path)
@@ -160,18 +166,19 @@ pub fn get_meta_ids(path: PathBuf) -> Result<Vec<String>, ExitMsg> {
         .filter_map(|f| f.ok())
         .map(|f| {
             let s = f.file_name().unwrap().to_str().unwrap();
-            String::from(&s[21..(s.len() - 10)])
+            // slice out the timestamp at the front, and the extension at the back, for just the id.
+            (&s[timestamp_base.len()..(s.len() - extension.len())]).to_owned()
         })
         .collect())
 }
 
 pub fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
     let mut path = dirs::config_dir().unwrap();
-    log::trace!("config dir: {}", path.to_str().unwrap());
     path.push("vodbot");
     for dir in dirs {
         path.push(dir);
     }
+    log::trace!("constructed vodbot path: {}", path.to_str().unwrap());
     path
 }
 

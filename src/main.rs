@@ -72,6 +72,7 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
 fn main() {
     std::process::exit(deffered_main().map_or_else(
         |err| {
+            log::error!("{}", err);
             println!("{}", err);
             err.code as i32
         },

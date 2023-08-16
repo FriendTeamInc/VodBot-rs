@@ -262,8 +262,11 @@ fn workers_download(
         let tx = tx.clone();
         let c = c.clone();
         executor.execute(move || {
-            tx.send(download_file(u, p, timeout.clone(), &c))
-                .expect("YOU SHOULDN'T BE ABLE TO SEE THIS!");
+            let _ = tx.send(download_file(u, p, timeout.clone(), &c))
+                .map_err(|f| ExitMsg::new(
+                    ExitCode::PullFailedToSendOnChannel,
+                    format!("Failed to send on chunk channel, reason: \"{}\".", f.to_string())
+                ));
         });
     }
 
@@ -271,10 +274,12 @@ fn workers_download(
     let mut dl_size: usize = 0;
     loop {
         done_count += 1;
-        let r = rx.recv().unwrap();
 
-        // TODO: proper error checking
-        dl_size += r.as_ref().unwrap();
+        dl_size += rx.recv().map_err(|f| ExitMsg::new(
+            ExitCode::PullFailedToRecieveOnChannel,
+            format!("Failed to recieve bytes from job pool. Reason: \"{}\"", f)
+        ))??;
+
         let perc = (done_count as f32) / (total_count as f32);
         let est_size = ((dl_size as f32) / perc) as usize;
         let duration = start_time.elapsed();
@@ -307,6 +312,9 @@ fn workers_download(
             stdout().flush().unwrap();
         }
     }
+
+    log::trace!("Rejoining thread pool.");
+    executor.join();
 
     Ok(())
 }
