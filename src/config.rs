@@ -8,6 +8,7 @@ use crate::util;
 
 pub fn from_vodbot_dir(dirs: &[&str]) -> PathBuf {
     let mut path = dirs::config_dir().unwrap();
+    log::trace!("config dir: {}", path.to_str().unwrap());
     path.push("vodbot");
     for dir in dirs {
         path.push(dir);

@@ -15,6 +15,9 @@ pub struct Cli {
     #[arg(short, long)]
     pub update_cache: bool,
 
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    pub verbose: u8,
+
     #[command(subcommand)]
     pub command: Commands,
 }

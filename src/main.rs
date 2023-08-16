@@ -14,31 +14,41 @@ mod commands {
     pub mod pull;
 }
 
-use crate::cli::{Cli, Commands};
+use crate::{cli::{Cli, Commands}};
 
 use clap::Parser;
 
 fn deffered_main() -> Result<(), util::ExitMsg> {
     // Setup the SIGINT handler
     ctrlc::set_handler(move || {
-        eprintln!("Interrupted!");
-        eprintln!(
-            "Exit code: {:?} ({})",
+        let e = util::ExitMsg::new(
             util::ExitCode::Interrupted,
-            util::ExitCode::Interrupted as i32
+            "Interrupted!".to_owned()
         );
-        std::process::exit(util::ExitCode::Interrupted as i32);
+        println!(
+            " Interrupted!\nExit code: {:?} ({})",
+            e.code.clone(),
+            e.code.clone() as i32
+        );
+        std::process::exit(e.code as i32);
     })
-    .map_err(|why| util::ExitMsg {
-        code: util::ExitCode::CannotRegisterSignalHandler,
-        msg: format!(
-            "Cannot register signal interrupt handler, reason: \"{}\".",
-            why
-        ),
-    })?;
+    .map_err(|why| util::ExitMsg::new(
+        util::ExitCode::CannotRegisterSignalHandler,
+        format!("Cannot register signal interrupt handler, reason: \"{}\".", why)
+    ))?;
 
     // Parse command line arguments
     let args = Cli::parse();
+
+    stderrlog::new()
+        .module(module_path!())
+        .timestamp(stderrlog::Timestamp::Nanosecond)
+        .verbosity(args.verbose as usize)
+        .init()
+        .map_err(|e| util::ExitMsg::new(
+            util::ExitCode::StderrLoggerError,
+            format!("Failed to initialize stderr logger, reason: `{}`.", e.to_string())
+        ))?;
 
     // Figure out what config path to use
     let config_path = args
@@ -46,6 +56,7 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
         .unwrap_or(config::default_config_location());
 
     // Run various commands
+    log::trace!("args.command: {:?}", args.command);
     match args.command {
         Commands::Init { overwrite_confirm } => commands::init::run(overwrite_confirm)?,
         Commands::Info { json, strings } => commands::info::run(config_path, json, strings)?,
@@ -69,7 +80,7 @@ fn main() {
     std::process::exit(deffered_main().map_or_else(
         |err| {
             let code: i32 = err.code.clone() as i32;
-            eprintln!(
+            println!(
                 "\n{}\nExit code: {:?} ({})",
                 err.msg.as_str(),
                 &err.code,

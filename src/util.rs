@@ -13,6 +13,7 @@ pub enum ExitCode {
     _CleanExit,
     Interrupted,
     _ReservedByClap,
+    StderrLoggerError,
 
     // Generic codes
     CannotRegisterSignalHandler,
@@ -59,6 +60,12 @@ pub enum ExitCode {
 pub struct ExitMsg {
     pub code: ExitCode,
     pub msg: String,
+}
+impl ExitMsg {
+    pub fn new(code: ExitCode, msg: String) -> Self {
+        log::error!("ExitMsg - {:?} ({}) - {}", code, code.clone() as i32, msg.as_str());
+        ExitMsg { code: code, msg: msg }
+    }
 }
 impl std::fmt::Display for ExitMsg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -112,6 +119,7 @@ pub fn format_size(size: usize, digits: usize, display_units: bool) -> String {
 }
 
 pub fn chdir(path: &PathBuf) -> Result<(), ExitMsg> {
+    log::debug!("changing directory to {}", path.to_str().unwrap());
     std::env::set_current_dir(path).map_err(|why| ExitMsg {
         code: ExitCode::CannotChangeDir,
         msg: format!(
