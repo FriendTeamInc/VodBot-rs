@@ -14,17 +14,14 @@ mod commands {
     pub mod pull;
 }
 
-use crate::{cli::{Cli, Commands}};
+use crate::cli::{Cli, Commands};
 
 use clap::Parser;
 
 fn deffered_main() -> Result<(), util::ExitMsg> {
     // Setup the SIGINT handler
     ctrlc::set_handler(move || {
-        let e = util::ExitMsg::new(
-            util::ExitCode::Interrupted,
-            "Interrupted!".to_owned()
-        );
+        let e = util::ExitMsg::new(util::ExitCode::Interrupted, "Interrupted!".to_owned());
         println!(
             " Interrupted!\nExit code: {:?} ({})",
             e.code.clone(),
@@ -32,23 +29,33 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
         );
         std::process::exit(e.code as i32);
     })
-    .map_err(|why| util::ExitMsg::new(
-        util::ExitCode::CannotRegisterSignalHandler,
-        format!("Cannot register signal interrupt handler, reason: \"{}\".", why)
-    ))?;
+    .map_err(|why| {
+        util::ExitMsg::new(
+            util::ExitCode::CannotRegisterSignalHandler,
+            format!(
+                "Cannot register signal interrupt handler, reason: \"{}\".",
+                why
+            ),
+        )
+    })?;
 
     // Parse command line arguments
     let args = Cli::parse();
 
     stderrlog::new()
         .module(module_path!())
-        .timestamp(stderrlog::Timestamp::Nanosecond)
+        .timestamp(stderrlog::Timestamp::Millisecond)
         .verbosity(args.verbose as usize)
         .init()
-        .map_err(|e| util::ExitMsg::new(
-            util::ExitCode::StderrLoggerError,
-            format!("Failed to initialize stderr logger, reason: `{}`.", e.to_string())
-        ))?;
+        .map_err(|e| {
+            util::ExitMsg::new(
+                util::ExitCode::StderrLoggerError,
+                format!(
+                    "Failed to initialize stderr logger, reason: \"{}\".",
+                    e.to_string()
+                ),
+            )
+        })?;
 
     // Figure out what config path to use
     let config_path = args
@@ -79,14 +86,8 @@ fn deffered_main() -> Result<(), util::ExitMsg> {
 fn main() {
     std::process::exit(deffered_main().map_or_else(
         |err| {
-            let code: i32 = err.code.clone() as i32;
-            println!(
-                "\n{}\nExit code: {:?} ({})",
-                err.msg.as_str(),
-                &err.code,
-                code
-            );
-            code
+            println!("{}", err);
+            err.code as i32
         },
         |_| 0,
     ))

@@ -38,7 +38,10 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
         // TODO: move this bit into twitch.rs?
         let v: Vec<_> = v
             .into_iter()
-            .map(|(u, v)| ChatLog { video_id: u, messages: v })
+            .map(|(u, v)| ChatLog {
+                video_id: u,
+                messages: v,
+            })
             .collect();
         chat.insert(k.clone(), v);
     }
@@ -53,11 +56,16 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
             get_meta_ids(dir.clips.clone().join(&k))?,
             get_meta_ids(dir.chat.clone().join(&k))?,
         );
-        d.0.into_iter().for_each(|v| vods.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.1.into_iter().for_each(|v| highlights.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.2.into_iter().for_each(|v| premieres.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.3.into_iter().for_each(|v| uploads.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.4.into_iter().for_each(|v| clips.get_mut(k).unwrap().retain(|f| f.slug != v));
+        d.0.into_iter()
+            .for_each(|v| vods.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.1.into_iter()
+            .for_each(|v| highlights.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.2.into_iter()
+            .for_each(|v| premieres.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.3.into_iter()
+            .for_each(|v| uploads.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.4.into_iter()
+            .for_each(|v| clips.get_mut(k).unwrap().retain(|f| f.slug != v));
         // d.5.into_iter().for_each(|v| chat.get_mut(k).unwrap().retain(|f| f.id != v));
     }
 
@@ -126,9 +134,14 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
 
         // Vods
         download_stuff::<Vod>(
-            dir.vods.clone(), k, &mut vods,
+            dir.vods.clone(),
+            k,
+            &mut vods,
             twitch::get_videos_playback_access_tokens,
-            itd::download_vod, &conf, &client, &genclient,
+            itd::download_vod,
+            &conf,
+            &client,
+            &genclient,
             "Vod".to_owned(),
         )?;
         // Chatlogs
@@ -136,30 +149,50 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
 
         // Highlights
         download_stuff::<Vod>(
-            dir.highlights.clone(), k, &mut highlights,
+            dir.highlights.clone(),
+            k,
+            &mut highlights,
             twitch::get_videos_playback_access_tokens,
-            itd::download_vod, &conf, &client, &genclient,
+            itd::download_vod,
+            &conf,
+            &client,
+            &genclient,
             "Highlight".to_owned(),
         )?;
         // Premiere
         download_stuff::<Vod>(
-            dir.premieres.clone(), k, &mut premieres,
+            dir.premieres.clone(),
+            k,
+            &mut premieres,
             twitch::get_videos_playback_access_tokens,
-            itd::download_vod, &conf, &client, &genclient,
+            itd::download_vod,
+            &conf,
+            &client,
+            &genclient,
             "Premiere".to_owned(),
         )?;
         // Upload
         download_stuff::<Vod>(
-            dir.uploads.clone(), k, &mut uploads,
+            dir.uploads.clone(),
+            k,
+            &mut uploads,
             twitch::get_videos_playback_access_tokens,
-            itd::download_vod, &conf, &client, &genclient,
+            itd::download_vod,
+            &conf,
+            &client,
+            &genclient,
             "Upload".to_owned(),
         )?;
         // Clip
         download_stuff::<Clip>(
-            dir.clips.clone(), k, &mut clips,
+            dir.clips.clone(),
+            k,
+            &mut clips,
             twitch::get_clips_playback_access_tokens,
-            itd::download_clip, &conf, &client, &genclient,
+            itd::download_clip,
+            &conf,
+            &client,
+            &genclient,
             "Clip".to_owned(),
         )?;
     }
@@ -203,10 +236,12 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
         let c = download_method(conf, c, token, output_path.clone(), genclient, noun.clone())?;
 
         output_path.set_extension("meta.json");
-        let file = std::fs::File::create(output_path).map_err(|why| ExitMsg::new(
-            ExitCode::PullCannotOpenMeta,
-            format!("Failed to open meta to write, reason `{}`.", why),
-        ))?;
+        let file = std::fs::File::create(output_path).map_err(|why| {
+            ExitMsg::new(
+                ExitCode::PullCannotOpenMeta,
+                format!("Failed to open meta to write, reason `{}`.", why),
+            )
+        })?;
         serde_json::to_writer(file, &c).unwrap();
     }
     if has_content {

@@ -83,7 +83,7 @@ pub fn get_channels_videos(
     // Get all videos from a list of channels
 
     batched_query::<TwitchUser, Vod>(
-        Box::new(move|alias, id, after| {
+        Box::new(move |alias, id, after| {
             formatdoc! {"
                 _{}: user( login: \"{}\" ) {{
                     id login displayName
@@ -146,10 +146,18 @@ pub fn get_channels_videos_premiere(
     client: &GQLClient,
     user_logins: &Vec<String>,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
-    get_channels_videos(client, user_logins, "PREMIERE_UPLOAD, PAST_PREMIERE".to_owned())
+    get_channels_videos(
+        client,
+        user_logins,
+        "PREMIERE_UPLOAD, PAST_PREMIERE".to_owned(),
+    )
 }
 
-pub fn _get_channel_videos(client: &GQLClient, user_login: String, r#type: String) -> Result<Vec<Vod>, ExitMsg> {
+pub fn _get_channel_videos(
+    client: &GQLClient,
+    user_login: String,
+    r#type: String,
+) -> Result<Vec<Vod>, ExitMsg> {
     Ok(get_channels_videos(client, &vec![user_login], r#type)?
         .values()
         .last()
@@ -157,7 +165,10 @@ pub fn _get_channel_videos(client: &GQLClient, user_login: String, r#type: Strin
         .to_owned())
 }
 
-pub fn _get_channel_videos_archive(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+pub fn _get_channel_videos_archive(
+    client: &GQLClient,
+    user_login: String,
+) -> Result<Vec<Vod>, ExitMsg> {
     Ok(get_channels_videos_archive(client, &vec![user_login])?
         .values()
         .last()
@@ -165,7 +176,10 @@ pub fn _get_channel_videos_archive(client: &GQLClient, user_login: String) -> Re
         .to_owned())
 }
 
-pub fn _get_channel_videos_highlight(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+pub fn _get_channel_videos_highlight(
+    client: &GQLClient,
+    user_login: String,
+) -> Result<Vec<Vod>, ExitMsg> {
     Ok(get_channels_videos_highlight(client, &vec![user_login])?
         .values()
         .last()
@@ -173,7 +187,10 @@ pub fn _get_channel_videos_highlight(client: &GQLClient, user_login: String) -> 
         .to_owned())
 }
 
-pub fn _get_channel_videos_upload(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+pub fn _get_channel_videos_upload(
+    client: &GQLClient,
+    user_login: String,
+) -> Result<Vec<Vod>, ExitMsg> {
     Ok(get_channels_videos_upload(client, &vec![user_login])?
         .values()
         .last()
@@ -181,7 +198,10 @@ pub fn _get_channel_videos_upload(client: &GQLClient, user_login: String) -> Res
         .to_owned())
 }
 
-pub fn _get_channel_videos_premiere(client: &GQLClient, user_login: String) -> Result<Vec<Vod>, ExitMsg> {
+pub fn _get_channel_videos_premiere(
+    client: &GQLClient,
+    user_login: String,
+) -> Result<Vec<Vod>, ExitMsg> {
     Ok(get_channels_videos_premiere(client, &vec![user_login])?
         .values()
         .last()

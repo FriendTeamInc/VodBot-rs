@@ -36,30 +36,36 @@ pub fn run(overwrite_confirm: bool) -> Result<(), util::ExitMsg> {
     util::create_dir(&conf.directories.stage)?;
     util::create_dir(&conf.directories.thumbnail)?;
 
-    let mut config_file = File::create(&config_path).map_err(|why| util::ExitMsg::new(
-        util::ExitCode::InitCannotOpenConfig,
-        format!(
-            "Failed to open file to write config to `{}`, reason: \"{}\".",
-            &config_path.display(),
-            why
-        ),
-    ))?;
-
-    let json_to_write = serde_json::to_string_pretty(&conf).map_err(|why| util::ExitMsg::new(
-        util::ExitCode::InitCannotSerializeConfig,
-        format!("Failed to serialize config, reason: \"{}\".", why),
-    ))?;
-
-    config_file
-        .write_all(json_to_write.as_bytes())
-        .map_err(|why| util::ExitMsg::new(
-            util::ExitCode::InitCannotWriteConfig,
+    let mut config_file = File::create(&config_path).map_err(|why| {
+        util::ExitMsg::new(
+            util::ExitCode::InitCannotOpenConfig,
             format!(
-                "Failed to write config to `{}`, reason: \"{}\".",
+                "Failed to open file to write config to `{}`, reason: \"{}\".",
                 &config_path.display(),
                 why
             ),
-        ))?;
+        )
+    })?;
+
+    let json_to_write = serde_json::to_string_pretty(&conf).map_err(|why| {
+        util::ExitMsg::new(
+            util::ExitCode::InitCannotSerializeConfig,
+            format!("Failed to serialize config, reason: \"{}\".", why),
+        )
+    })?;
+
+    config_file
+        .write_all(json_to_write.as_bytes())
+        .map_err(|why| {
+            util::ExitMsg::new(
+                util::ExitCode::InitCannotWriteConfig,
+                format!(
+                    "Failed to write config to `{}`, reason: \"{}\".",
+                    &config_path.display(),
+                    why
+                ),
+            )
+        })?;
 
     // println!("Done!");
     // println!("You may still need to add channels yourself.")

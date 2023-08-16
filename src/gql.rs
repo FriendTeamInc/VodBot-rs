@@ -42,10 +42,12 @@ impl GQLClient {
             .header("X-Device-ID", &self.device_id)
             .json(&GQLQuery { query: query })
             .send()
-            .map_err(|why| util::ExitMsg::new(
-                util::ExitCode::CannotConnectToTwitch,
-                format!("Cannot connect to Twitch, reason: \"{}\".", why),
-            ))?;
+            .map_err(|why| {
+                util::ExitMsg::new(
+                    util::ExitCode::CannotConnectToTwitch,
+                    format!("Cannot connect to Twitch, reason: \"{}\".", why),
+                )
+            })?;
 
         if !resp.status().is_success() {
             return Err(util::ExitMsg::new(
@@ -53,7 +55,7 @@ impl GQLClient {
                 format!(
                     "Error response from Twitch GQL: \"{}\".",
                     resp.text().unwrap()
-                )
+                ),
             ));
         }
 
