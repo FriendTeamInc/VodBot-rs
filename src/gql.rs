@@ -42,19 +42,19 @@ impl GQLClient {
             .header("X-Device-ID", &self.device_id)
             .json(&GQLQuery { query: query })
             .send()
-            .map_err(|why| util::ExitMsg {
-                code: util::ExitCode::CannotConnectToTwitch,
-                msg: format!("Cannot connect to Twitch, reason: \"{}\".", why),
-            })?;
+            .map_err(|why| util::ExitMsg::new(
+                util::ExitCode::CannotConnectToTwitch,
+                format!("Cannot connect to Twitch, reason: \"{}\".", why),
+            ))?;
 
         if !resp.status().is_success() {
-            return Err(util::ExitMsg {
-                code: util::ExitCode::RequestErrorFromTwitch,
-                msg: format!(
+            return Err(util::ExitMsg::new(
+                util::ExitCode::RequestErrorFromTwitch,
+                format!(
                     "Error response from Twitch GQL: \"{}\".",
                     resp.text().unwrap()
-                ),
-            });
+                )
+            ));
         }
 
         Ok(resp)
@@ -65,22 +65,22 @@ impl GQLClient {
         T: twitch_api::TwitchData + for<'de> serde::Deserialize<'de>,
     {
         let s = self.raw_query(query.clone())?.text().unwrap();
-        let j: TwitchResponse<T> = serde_json::from_str(&s).map_err(|why| util::ExitMsg {
-            code: util::ExitCode::CannotParseResponseFromTwitch,
-            msg: format!(
+        let j: TwitchResponse<T> = serde_json::from_str(&s).map_err(|why| util::ExitMsg::new(
+            util::ExitCode::CannotParseResponseFromTwitch,
+            format!(
                 "Failed to parse response from Twitch, reason: \"{}\".\nQuery: `{}`\nResponse: `{}`",
                 why, query, s
             ),
-        })?;
+        ))?;
 
         if let Some(errors) = j.errors {
-            return Err(util::ExitMsg {
-                code: util::ExitCode::GQLErrorFromTwitch,
-                msg: format!(
+            return Err(util::ExitMsg::new(
+                util::ExitCode::GQLErrorFromTwitch,
+                format!(
                     "Something went wrong with the GQL request: \"{:?}\".",
                     errors
                 ),
-            });
+            ));
         }
 
         Ok(j)

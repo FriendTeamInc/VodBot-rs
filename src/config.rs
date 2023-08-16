@@ -21,32 +21,32 @@ pub fn default_config_location() -> PathBuf {
 }
 
 pub fn load_config(path: &PathBuf) -> Result<Config, util::ExitMsg> {
-    let file = fs::File::open(path).map_err(|why| util::ExitMsg {
-        code: util::ExitCode::CannotOpenConfig,
-        msg: format!(
+    let file = fs::File::open(path).map_err(|why| util::ExitMsg::new(
+        util::ExitCode::CannotOpenConfig,
+        format!(
             "Failed to open config at `{}`, reason: \"{}\".",
             &path.display(),
             why
         ),
-    })?;
+    ))?;
 
-    let json: Config = serde_json::from_reader(file).map_err(|why| util::ExitMsg {
-        code: util::ExitCode::CannotParseConfig,
-        msg: format!(
+    let json: Config = serde_json::from_reader(file).map_err(|why| util::ExitMsg::new(
+        util::ExitCode::CannotParseConfig,
+        format!(
             "Failed to parse config at `{}`, reason: \"{}\".",
             &path.display(),
             why
         ),
-    })?;
+    ))?;
 
-    json.validate().map_err(|why| util::ExitMsg {
-        code: util::ExitCode::CannotValidateConfig,
-        msg: format!(
+    json.validate().map_err(|why| util::ExitMsg::new(
+        util::ExitCode::CannotValidateConfig,
+        format!(
             "Failed to validate config at `{}`, reason: \"{}\".",
             &path.display(),
             why
         ),
-    })?;
+    ))?;
 
     Ok(json)
 }

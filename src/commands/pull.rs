@@ -203,10 +203,10 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
         let c = download_method(conf, c, token, output_path.clone(), genclient, noun.clone())?;
 
         output_path.set_extension("meta.json");
-        let file = std::fs::File::create(output_path).map_err(|why| ExitMsg {
-            code: ExitCode::PullCannotOpenMeta,
-            msg: format!("Failed to open meta to write, reason `{}`.", why),
-        })?;
+        let file = std::fs::File::create(output_path).map_err(|why| ExitMsg::new(
+            ExitCode::PullCannotOpenMeta,
+            format!("Failed to open meta to write, reason `{}`.", why),
+        ))?;
         serde_json::to_writer(file, &c).unwrap();
     }
     if has_content {

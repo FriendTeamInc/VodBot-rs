@@ -81,14 +81,14 @@ impl std::fmt::Display for ExitMsg {
 impl std::error::Error for ExitMsg {}
 
 pub fn create_dir(dir_path: &Path) -> Result<(), ExitMsg> {
-    fs::create_dir_all(&dir_path).map_err(|why| ExitMsg {
-        code: ExitCode::CannotCreateDir,
-        msg: format!(
+    fs::create_dir_all(&dir_path).map_err(|why| ExitMsg::new(
+        ExitCode::CannotCreateDir,
+        format!(
             "Cannot create directory `{}`, reason: \"{}\".",
             &dir_path.display(),
             why
         ),
-    })
+    ))
 }
 
 // replace with the following?
@@ -120,14 +120,14 @@ pub fn format_size(size: usize, digits: usize, display_units: bool) -> String {
 
 pub fn chdir(path: &PathBuf) -> Result<(), ExitMsg> {
     log::debug!("changing directory to {}", path.to_str().unwrap());
-    std::env::set_current_dir(path).map_err(|why| ExitMsg {
-        code: ExitCode::CannotChangeDir,
-        msg: format!(
+    std::env::set_current_dir(path).map_err(|why| ExitMsg::new(
+        ExitCode::CannotChangeDir,
+        format!(
             "Cannot change directory to `{}`, reason: `{}`.",
             path.to_str().unwrap(),
             why
         ),
-    })?;
+    ))?;
 
     Ok(())
 }
@@ -139,10 +139,10 @@ pub fn get_meta_ids(path: PathBuf) -> Result<Vec<String>, ExitMsg> {
     // TODO: remove glob and just list_dir manually
 
     Ok(glob::glob(path)
-        .map_err(|why| ExitMsg {
-            msg: format!("Failed to glob/wildcard directory, reason `{}`.", why),
-            code: ExitCode::CannotGlobDirectory,
-        })?
+        .map_err(|why| ExitMsg::new(
+            ExitCode::CannotGlobDirectory,
+            format!("Failed to glob/wildcard directory, reason `{}`.", why),
+        ))?
         .filter_map(|f| f.ok())
         .map(|f| {
             let s = f.file_name().unwrap().to_str().unwrap();

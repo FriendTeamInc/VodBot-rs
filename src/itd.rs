@@ -27,27 +27,27 @@ pub fn download_vod(
     let mut uri = get_playlist_source_uri(&vod, token, client)?;
 
     // then we use that uri to grab the video segment playlist, also m3u8
-    let resp = client.get(&uri).send().map_err(|why| ExitMsg {
-        code: ExitCode::PullCannotGetSourcePlaylist,
-        msg: format!("Failed to get source M3U8 playlist, reason: \"{}\".", why,),
-    })?;
-    let bytes = resp.bytes().map_err(|why| ExitMsg {
-        code: ExitCode::PullCannotReadSourcePlaylist,
-        msg: format!("Failed to read source M3U8 playlist, reason: \"{}\".", why,),
-    })?;
+    let resp = client.get(&uri).send().map_err(|why| ExitMsg::new(
+        ExitCode::PullCannotGetSourcePlaylist,
+        format!("Failed to get source M3U8 playlist, reason: \"{}\".", why,),
+    ))?;
+    let bytes = resp.bytes().map_err(|why| ExitMsg::new(
+        ExitCode::PullCannotReadSourcePlaylist,
+        format!("Failed to read source M3U8 playlist, reason: \"{}\".", why,),
+    ))?;
     let playlist = m3u8_rs::parse_playlist(&bytes.clone())
-        .map_err(|why| ExitMsg {
-            code: ExitCode::PullCannotParseSourcePlaylist,
-            msg: format!("Failed to parse source M3U8 playlist, reason: \"{}\".", why,),
-        })?
+        .map_err(|why| ExitMsg::new(
+            ExitCode::PullCannotParseSourcePlaylist,
+            format!("Failed to parse source M3U8 playlist, reason: \"{}\".", why,),
+        ))?
         .1;
 
     let p = match playlist {
         Playlist::MediaPlaylist(p) => Ok(p),
-        _ => Err(ExitMsg {
-            code: ExitCode::PullCannotUseSourcePlaylist,
-            msg: format!("Failed to use source M3U8 playlist."),
-        }),
+        _ => Err(ExitMsg::new(
+            ExitCode::PullCannotUseSourcePlaylist,
+            format!("Failed to use source M3U8 playlist."),
+        )),
     }?;
 
     // then we determine what paths each segment should have
@@ -65,13 +65,13 @@ pub fn download_vod(
         .collect();
 
     // then we start the workers on downloading each segment
-    std::fs::write(&playlist_path, &bytes).map_err(|why| ExitMsg {
-        code: ExitCode::PullCannotWriteSourcePlaylist,
-        msg: format!(
+    std::fs::write(&playlist_path, &bytes).map_err(|why| ExitMsg::new(
+        ExitCode::PullCannotWriteSourcePlaylist,
+        format!(
             "Failed to use write M3U8 playlist to disk, reason \"{}\".",
             why
         ),
-    })?;
+    ))?;
     workers_download(conf, &vod, segment_uri_paths, client, noun)?;
 
     // once the download is done, we spawn an ffmpeg process to stitch it all together
@@ -93,10 +93,10 @@ pub fn download_vod(
             &loglevel,
         ])
         .status()
-        .map_err(|why| ExitMsg {
-            code: ExitCode::CannotStartFfmpeg,
-            msg: format!("Failed to start FFMPEG, reason \"{}\".", why),
-        })?;
+        .map_err(|why| ExitMsg::new(
+            ExitCode::CannotStartFfmpeg,
+            format!("Failed to start FFMPEG, reason \"{}\".", why),
+        ))?;
     chdir(&currdir)?;
     // TODO: sometimes segments are called corrupt by ffmpeg
     // most of the time theyre useable, depending on the version of ffmpeg
@@ -106,23 +106,23 @@ pub fn download_vod(
     let status = status.code();
     if let Some(s) = status {
         if s != 0 {
-            return Err(ExitMsg {
-                code: ExitCode::FfmpegReturnedError,
-                msg: format!("FFMPEG returned a non-zero status, `{}`.", s),
-            });
+            return Err(ExitMsg::new(
+                ExitCode::FfmpegReturnedError,
+                format!("FFMPEG returned a non-zero status, `{}`.", s),
+            ));
         }
     } else if let None = status {
-        return Err(ExitMsg {
-            code: ExitCode::FfmpegInterrupted,
-            msg: format!("FFMPEG was interrupted, no other error."),
-        });
+        return Err(ExitMsg::new(
+            ExitCode::FfmpegInterrupted,
+            format!("FFMPEG was interrupted, no other error."),
+        ));
     }
 
     // clear out the temp folder, and we're done here!
-    std::fs::remove_dir_all(temp_dir).map_err(|why| ExitMsg {
-        code: ExitCode::PullCannotCleanUpAfterDownload,
-        msg: format!("Failed to clean up after Vod download, reason \"{}\".", why),
-    })?;
+    std::fs::remove_dir_all(temp_dir).map_err(|why| ExitMsg::new(
+        ExitCode::PullCannotCleanUpAfterDownload,
+        format!("Failed to clean up after Vod download, reason \"{}\".", why),
+    ))?;
 
     Ok(vod)
 }
@@ -185,39 +185,39 @@ fn get_playlist_source_uri(
         // TODO: Change this duration?
         .timeout(Duration::from_secs(5))
         .send()
-        .map_err(|why| ExitMsg {
-            code: ExitCode::PullCannotGetPlaylistURI,
-            msg: format!(
+        .map_err(|why| ExitMsg::new(
+            ExitCode::PullCannotGetPlaylistURI,
+            format!(
                 "Failed to get M3U8 playlist from Twitch, reason: \"{}\".",
                 why,
             ),
-        })?;
+        ))?;
 
-    let bytes = resp.bytes().map_err(|why| ExitMsg {
-        code: ExitCode::PullCannotReadPlaylistURI,
-        msg: format!(
+    let bytes = resp.bytes().map_err(|why| ExitMsg::new(
+        ExitCode::PullCannotReadPlaylistURI,
+        format!(
             "Failed to read M3U8 playlist from Twitch, reason: \"{}\".",
             why,
         ),
-    })?;
+    ))?;
 
     let playlist = m3u8_rs::parse_playlist(&bytes)
-        .map_err(|why| ExitMsg {
-            code: ExitCode::PullCannotParsePlaylistURI,
-            msg: format!(
+        .map_err(|why| ExitMsg::new(
+            ExitCode::PullCannotParsePlaylistURI,
+            format!(
                 "Failed to parse M3U8 playlist from Twitch, reason: \"{}\".",
                 why,
             ),
-        })?
+        ))?
         .1;
 
     if let Playlist::MasterPlaylist(p) = playlist {
         Ok(p.variants.first().unwrap().uri.to_owned())
     } else {
-        Err(ExitMsg {
-            code: ExitCode::PullCannotFindPlaylistURI,
-            msg: format!("Failed to find source M3U8 playlist URI from Twitch."),
-        })
+        Err(ExitMsg::new(
+            ExitCode::PullCannotFindPlaylistURI,
+            format!("Failed to find source M3U8 playlist URI from Twitch."),
+        ))
     }
 }
 
@@ -303,20 +303,20 @@ fn download_file(
         .get(url)
         .timeout(Duration::from_secs(timeout as u64))
         .send()
-        .map_err(|why| ExitMsg {
-            code: ExitCode::PullCannotGetChunk,
-            msg: format!("Failed to get file, reason \"{}\".", why),
-        })?;
+        .map_err(|why| ExitMsg::new(
+            ExitCode::PullCannotGetChunk,
+            format!("Failed to get file, reason \"{}\".", why),
+        ))?;
 
-    let bytes = resp.bytes().map_err(|why| ExitMsg {
-        code: ExitCode::PullCannotParseChunk,
-        msg: format!("Failed to parse file, reason \"{}\".", why),
-    })?;
+    let bytes = resp.bytes().map_err(|why| ExitMsg::new(
+        ExitCode::PullCannotParseChunk,
+        format!("Failed to parse file, reason \"{}\".", why),
+    ))?;
 
-    std::fs::write(path, &bytes).map_err(|why| ExitMsg {
-        code: ExitCode::PullCannotWriteChunk,
-        msg: format!("Failed to write file, reason \"{}\".", why),
-    })?;
+    std::fs::write(path, &bytes).map_err(|why| ExitMsg::new(
+        ExitCode::PullCannotWriteChunk,
+        format!("Failed to write file, reason \"{}\".", why),
+    ))?;
 
     Ok(bytes.len())
 }
