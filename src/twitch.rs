@@ -29,11 +29,7 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
         .map(|f| {
             (
                 "_".to_owned() + &f.replace("-", "_"),
-                QueryMap {
-                    next: true,
-                    id: f.clone(),
-                    after: "".to_owned(),
-                },
+                QueryMap { next: true, id: f.clone(), after: "".to_owned() }
             )
         })
         .collect();
@@ -49,6 +45,9 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
             .filter(|f| f.next)
             .map(|f| query(f.id.replace("-", "_"), f.id, f.after))
             .collect();
+
+        log::debug!("cursors: {:?}", queries.values().collect::<Vec<_>>());
+        log::trace!("queries:\n{{\n{}\n}}", q.join("\n"));
 
         let j: TwitchResponse<T> = client.query(format!("{{ {} }}", q.join("\n")))?;
 
@@ -78,9 +77,11 @@ fn batched_query<T: TwitchData + for<'de> serde::Deserialize<'de>, R: Clone>(
 pub fn get_channels_videos(
     client: &GQLClient,
     user_logins: &Vec<String>,
-    r#type: String,
+    video_type: String,
 ) -> Result<HashMap<String, Vec<Vod>>, ExitMsg> {
     // Get all videos from a list of channels
+
+    log::debug!("getting video(s) of type {}", video_type);
 
     batched_query::<TwitchUser, Vod>(
         Box::new(move |alias, id, after| {
@@ -94,7 +95,7 @@ pub fn get_channels_videos(
                             broadcastType lengthSeconds
                             game {{ id name }}
                 }}  }}  }}  }}",
-                alias, id, after, r#type
+                alias, id, after, video_type
             }
         }),
         client,
@@ -153,19 +154,19 @@ pub fn get_channels_videos_premiere(
     )
 }
 
-pub fn _get_channel_videos(
+pub fn get_channel_videos(
     client: &GQLClient,
     user_login: String,
-    r#type: String,
+    video_type: String,
 ) -> Result<Vec<Vod>, ExitMsg> {
-    Ok(get_channels_videos(client, &vec![user_login], r#type)?
+    Ok(get_channels_videos(client, &vec![user_login], video_type)?
         .values()
         .last()
         .unwrap()
         .to_owned())
 }
 
-pub fn _get_channel_videos_archive(
+pub fn get_channel_videos_archive(
     client: &GQLClient,
     user_login: String,
 ) -> Result<Vec<Vod>, ExitMsg> {
@@ -176,7 +177,7 @@ pub fn _get_channel_videos_archive(
         .to_owned())
 }
 
-pub fn _get_channel_videos_highlight(
+pub fn get_channel_videos_highlight(
     client: &GQLClient,
     user_login: String,
 ) -> Result<Vec<Vod>, ExitMsg> {
@@ -187,7 +188,7 @@ pub fn _get_channel_videos_highlight(
         .to_owned())
 }
 
-pub fn _get_channel_videos_upload(
+pub fn get_channel_videos_upload(
     client: &GQLClient,
     user_login: String,
 ) -> Result<Vec<Vod>, ExitMsg> {
@@ -198,7 +199,7 @@ pub fn _get_channel_videos_upload(
         .to_owned())
 }
 
-pub fn _get_channel_videos_premiere(
+pub fn get_channel_videos_premiere(
     client: &GQLClient,
     user_login: String,
 ) -> Result<Vec<Vod>, ExitMsg> {
@@ -214,6 +215,8 @@ pub fn get_channels_clips(
     user_logins: &Vec<String>,
 ) -> Result<HashMap<String, Vec<Clip>>, ExitMsg> {
     // Get all clips from a list of channels
+
+    log::debug!("getting clip(s)");
 
     batched_query::<TwitchUser, Clip>(
         Box::new(|alias, id, after| {
@@ -269,6 +272,8 @@ pub fn get_videos_comments(
 ) -> Result<HashMap<String, Vec<ChatMessage>>, ExitMsg> {
     // Get all videos from a list of channels
 
+    log::debug!("getting video(s) comments");
+
     batched_query::<TwitchVideo, ChatMessage>(
         Box::new(|alias, id, after| {
             formatdoc! {"
@@ -319,6 +324,8 @@ pub fn get_videos_chapters(
     video_ids: &Vec<String>,
 ) -> Result<HashMap<String, Vec<VodChapter>>, ExitMsg> {
     // Get all videos from a list of channels
+
+    log::debug!("getting video(s) chapter(s)");
 
     batched_query::<TwitchVideo, VodChapter>(
         Box::new(|alias, id, after| {
@@ -374,6 +381,8 @@ pub fn get_videos_playback_access_tokens(
 ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg> {
     // Get all video access tokens from a list of video ids
 
+    log::debug!("getting video(s) pbat(s)");
+
     let j = batched_query::<TwitchPlaybackAccessTokenToken, PlaybackAccessToken>(
         Box::new(|alias, id, after| {
             formatdoc! {"
@@ -420,6 +429,8 @@ pub fn get_clips_playback_access_tokens(
 ) -> Result<HashMap<String, PlaybackAccessToken>, ExitMsg> {
     // Get all video access tokens from a list of video ids
 
+    log::debug!("getting clip(s) pbat(s)");
+
     let j = batched_query::<TwitchPlaybackAccessTokenToken, PlaybackAccessToken>(
         Box::new(|alias, id, after| {
             formatdoc! {"
@@ -462,6 +473,9 @@ pub fn get_clip_playback_access_token(
 
 pub fn get_channel(client: &GQLClient, user_login: String) -> Result<Option<TwitchUser>, ExitMsg> {
     // Get channel info
+
+    log::trace!("getting channel info for {}", user_login);
+
     Ok(client
         .query::<TwitchUser>(formatdoc! {"
             {{  _: user( login: \"{}\" ) {{
@@ -479,6 +493,9 @@ pub fn get_channel(client: &GQLClient, user_login: String) -> Result<Option<Twit
 
 pub fn get_video(client: &GQLClient, video_id: String) -> Result<Option<TwitchVideo>, ExitMsg> {
     // Get video info
+
+    log::trace!("getting video info for {}", video_id);
+
     Ok(client
         .query::<TwitchVideo>(formatdoc! {"
             {{  _: video( id: \"{}\" ) {{
@@ -495,6 +512,9 @@ pub fn get_video(client: &GQLClient, video_id: String) -> Result<Option<TwitchVi
 
 pub fn get_clip(client: &GQLClient, clip_slug: String) -> Result<Option<TwitchClip>, ExitMsg> {
     // Get clip info
+
+    log::trace!("getting clip info for {}", clip_slug);
+
     Ok(client
         .query::<TwitchClip>(formatdoc! {"
             {{  _: clip( slug: \"{}\" ) {{

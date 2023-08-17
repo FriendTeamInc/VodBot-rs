@@ -75,7 +75,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     let total_total: usize =
         vods_total + highlights_total + premieres_total + uploads_total + clips_total + chat_total;
 
-    let counts: HashMap<_, _> = users
+    let user_counts: HashMap<_, _> = users
         .iter()
         .map(|f| {
             (
@@ -94,7 +94,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
 
     // we go by the order in the config, not whatever arbitrary order the hashmap may give
     for k in &users {
-        let v = counts.get(k).unwrap();
+        let v = user_counts.get(k).unwrap();
         println!(
             "{}: {} Vods, {} Highlights, {} Premieres, {} Uploads, {} Clips, {} Chatlogs",
             k, v.0, v.1, v.2, v.3, v.4, v.5,
@@ -115,7 +115,7 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
     // now to download each set of videos per user
     let dir = &conf.directories;
     for k in &users {
-        let count = counts.get(k).unwrap_or(&(0, 0, 0, 0, 0, 0));
+        let count = user_counts.get(k).unwrap_or(&(0, 0, 0, 0, 0, 0));
         let user_total = count.0 + count.1 + count.2 + count.3 + count.4 + count.5;
         if user_total == 0 {
             break;
