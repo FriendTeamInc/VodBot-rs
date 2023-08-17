@@ -18,34 +18,30 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
 
     let f = |f: &ConfigChannel| f.username.clone();
     let users: Vec<_> = c.iter().map(f).collect();
+    let users_want_vods: Vec<_> = c.iter().filter(|f| f.save_vods).map(f).collect();
+    let users_want_highlights: Vec<_> = c.iter().filter(|f| f.save_highlights).map(f).collect();
+    let users_want_premieres: Vec<_> = c.iter().filter(|f| f.save_premieres).map(f).collect();
+    let users_want_uploads: Vec<_> = c.iter().filter(|f| f.save_uploads).map(f).collect();
+    let users_want_clips: Vec<_> = c.iter().filter(|f| f.save_clips).map(f).collect();
+    let users_want_chat: Vec<_> = c.iter().filter(|f| f.save_chat).map(f).collect();
     println!("Checking users: {} ...", users.join(", "));
-
-    // TODO: do save_* checks?
 
     let client = GQLClient::new(conf.pull.gql_client_id.clone());
 
-    let mut vods = twitch::get_channels_videos_archive(&client, &users)?;
-    let mut highlights = twitch::get_channels_videos_highlight(&client, &users)?;
-    let mut premieres = twitch::get_channels_videos_premiere(&client, &users)?;
-    let mut uploads = twitch::get_channels_videos_upload(&client, &users)?;
-    let mut clips = twitch::get_channels_clips(&client, &users)?;
+    let mut vods = twitch::get_channels_videos_archive(&client, &users_want_vods)?;
+    let mut highlights = twitch::get_channels_videos_highlight(&client, &users_want_highlights)?;
+    let mut premieres = twitch::get_channels_videos_premiere(&client, &users_want_premieres)?;
+    let mut uploads = twitch::get_channels_videos_upload(&client, &users_want_uploads)?;
+    let mut clips = twitch::get_channels_clips(&client, &users_want_clips)?;
 
-    let mut chat = HashMap::<String, Vec<ChatLog>>::new();
-    for k in &users {
+    let mut chat = HashMap::<String, Vec<String>>::new();
+    for k in &users_want_chat {
         let vods = vods.get(k).unwrap();
         let vod_ids: Vec<_> = vods.iter().map(|f| f.id.clone()).collect();
-        let v = twitch::get_videos_comments(&client, &vod_ids)?;
-        // TODO: move this bit into twitch.rs?
-        let v: Vec<_> = v
-            .into_iter()
-            .map(|(u, v)| ChatLog {
-                video_id: u,
-                messages: v,
-            })
-            .collect();
-        chat.insert(k.clone(), v);
+        chat.insert(k.clone(), vod_ids);
     }
 
+    // filter out a bunch of already-downloaded 
     for k in &users {
         let dir = &conf.directories;
         let d = (
@@ -56,17 +52,12 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
             get_meta_ids(dir.clips.clone().join(&k))?,
             get_meta_ids(dir.chat.clone().join(&k))?,
         );
-        d.0.into_iter()
-            .for_each(|v| vods.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.1.into_iter()
-            .for_each(|v| highlights.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.2.into_iter()
-            .for_each(|v| premieres.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.3.into_iter()
-            .for_each(|v| uploads.get_mut(k).unwrap().retain(|f| f.id != v));
-        d.4.into_iter()
-            .for_each(|v| clips.get_mut(k).unwrap().retain(|f| f.slug != v));
-        // d.5.into_iter().for_each(|v| chat.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.0.into_iter().for_each(|v| vods.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.1.into_iter().for_each(|v| highlights.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.2.into_iter().for_each(|v| premieres.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.3.into_iter().for_each(|v| uploads.get_mut(k).unwrap().retain(|f| f.id != v));
+        d.4.into_iter().for_each(|v| clips.get_mut(k).unwrap().retain(|f| f.slug != v));
+        d.5.into_iter().for_each(|v| chat.get_mut(k).unwrap().retain(|f| f.to_owned() != v));
     }
 
     let vods_count: HashMap<_, _> = vods.iter().map(|(k, v)| (k, v.len())).collect();
@@ -146,6 +137,19 @@ pub fn run(config_path: PathBuf, _mode: PullMode) -> Result<(), ExitMsg> {
         )?;
         // Chatlogs
         // TODO: take `chat` variable, grab logs downloaded for `k`, and save it to disk.
+        let chat_ids = chat.remove(k);
+        if let Some(chat_ids) = chat_ids {
+            let v = twitch::get_videos_comments(&client, &chat_ids)?;
+            // TODO: move this bit into twitch.rs?
+            let v: Vec<_> = v
+                .into_iter()
+                .map(|(u, v)| ChatLog {
+                    video_id: u,
+                    messages: v,
+                })
+                .collect();
+            // TODO: save each in v as chat log file
+        }
 
         // Highlights
         download_stuff::<Vod>(
@@ -223,7 +227,12 @@ fn download_stuff<T: VodBotData + serde::Serialize>(
     genclient: &Client,
     noun: String,
 ) -> Result<(), ExitMsg> {
-    let content = content.remove(user_id).unwrap();
+    let content = content.remove(user_id);
+    if content.is_none() {
+        log::trace!("not downloading {}'s for {}, as none new were found", noun, user_id);
+        return Ok(());
+    }
+    let content = content.unwrap();
     let tokens = token_method(gqlclient, &content.iter().map(|f| f.identifier()).collect())?;
 
     let mut has_content = false;
